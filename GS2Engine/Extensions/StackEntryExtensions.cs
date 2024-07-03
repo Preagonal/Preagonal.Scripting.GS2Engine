@@ -74,7 +74,7 @@ public static class StackEntryExtensions
 				    stackType.GetGenericTypeDefinition().IsAssignableFrom(typeof(List<>)))
 					return StackEntryType.Array;
 
-				throw new ArgumentOutOfRangeException();
+				throw new ArgumentOutOfRangeException(nameof(stackObject));
 			}
 		}
 	}
@@ -83,5 +83,11 @@ public static class StackEntryExtensions
 		new StackEntry(StackEntryType.Array, stackObject.ToList());
 
 	public static IStackEntry ToStackEntry(this IEnumerable<int> stackObject) =>
+		new StackEntry(StackEntryType.Array, stackObject.ToList());
+
+	public static IStackEntry ToStackEntry(this IEnumerable<object?> stackObject) =>
+		new StackEntry(StackEntryType.Array, stackObject.ToList());
+
+	public static IStackEntry ToStackEntry(this IEnumerable<double> stackObject) =>
 		new StackEntry(StackEntryType.Array, stackObject.ToList());
 }
