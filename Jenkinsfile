@@ -83,7 +83,7 @@ def buildStepDocker() {
 			stage("Building NuGet Package") {
 				customImage.inside("-u 0") {
 					sh("chmod 777 -R .");
-					sh("dotnet pack GS2Engine/GS2Engine.csproj -c Release ${VER}");
+					sh("dotnet pack Preagonal.Scripting.GS2Engine/Preagonal.Scripting.GS2Engine.csproj -c Release ${VER}");
 					sh("chmod 777 -R .");
 				}
 			}
@@ -116,7 +116,7 @@ def buildStepDocker() {
 					)
 
 					withCredentials([string(credentialsId: 'PREAGONAL_GS2ENGINE_CODECOV_TOKEN', variable: 'CODECOV_TOKEN')]) {
-					    sh("curl -s https://codecov.io/bash > codecov && chmod +x codecov && ./codecov -f \"Testing/unit_tests.xml\" -t ${env.CODECOV_TOKEN} && ./codecov -f \"GS2Engine.UnitTests/coverage.opencover.xml\" -t ${env.CODECOV_TOKEN}")
+					    sh("curl -s https://codecov.io/bash > codecov && chmod +x codecov && ./codecov -f \"Testing/unit_tests.xml\" -t ${env.CODECOV_TOKEN} && ./codecov -f \"Preagonal.Scripting.GS2Engine.UnitTests/coverage.opencover.xml\" -t ${env.CODECOV_TOKEN}")
 					}
 
 					stage("Xunit") {
@@ -144,11 +144,11 @@ def buildStepDocker() {
 				stage("Pushing NuGet") {
 					customImage.inside("-u 0") {
 						withCredentials([string(credentialsId: 'PREAGONAL_GITHUB_TOKEN', variable: 'GITHUB_TOKEN')]) {
-							sh("dotnet nuget push -s https://nuget.pkg.github.com/Preagonal/index.json -k ${env.GITHUB_TOKEN} GS2Engine/bin/Release/*.nupkg;chmod 777 -R .");
+							sh("dotnet nuget push -s https://nuget.pkg.github.com/Preagonal/index.json -k ${env.GITHUB_TOKEN} Preagonal.Scripting.GS2Engine/bin/Release/*.nupkg;chmod 777 -R .");
 							discordSend description: "NuGet Successful", footer: "", link: env.BUILD_URL, result: currentBuild.currentResult, title: "[${split_job_name[0]}] Artifact Successful: ${fixed_job_name} #${env.BUILD_NUMBER}", webhookURL: env.GS2EMU_WEBHOOK;
 						}
 						withCredentials([string(credentialsId: 'PREAGONAL_NUGET_TOKEN', variable: 'NUGET_TOKEN')]) {
-							sh("dotnet nuget push -s https://api.nuget.org/v3/index.json -k ${env.NUGET_TOKEN} GS2Engine/bin/Release/*.nupkg;chmod 777 -R .");
+							sh("dotnet nuget push -s https://api.nuget.org/v3/index.json -k ${env.NUGET_TOKEN} Preagonal.Scripting.GS2Engine/bin/Release/*.nupkg;chmod 777 -R .");
 							discordSend description: "NuGet Successful", footer: "", link: env.BUILD_URL, result: currentBuild.currentResult, title: "[${split_job_name[0]}] Artifact Successful: ${fixed_job_name} #${env.BUILD_NUMBER}", webhookURL: env.GS2EMU_WEBHOOK;
 						}
 					}
@@ -224,13 +224,13 @@ node('master') {
 			).trim();
 
 			env.JSON_RESPONSE = sh(
-				script: "curl -L -X POST -H \"Accept: application/vnd.github+json\" -H \"Authorization: Bearer ${env.GITHUB_TOKEN}\" -H \"X-GitHub-Api-Version: 2022-11-28\" https://api.github.com/repos/preagonal/gs2engine/git/tags -d '{\"tag\":\"${tagName}\",\"message\":\"${env.COMMIT_MSG}\",\"object\":\"${env.GIT_COMMIT}\",\"type\":\"tree\",\"tagger\":{\"name\":\"preagonal-pipeline[bot]\",\"email\":\"119898225+preagonal-pipeline[bot]@users.noreply.github.com\",\"date\":\"${iso8601Date}\"}}'",
+				script: "curl -L -X POST -H \"Accept: application/vnd.github+json\" -H \"Authorization: Bearer ${env.GITHUB_TOKEN}\" -H \"X-GitHub-Api-Version: 2022-11-28\" https://api.github.com/repos/preagonal/Preagonal.Scripting.gs2engine/git/tags -d '{\"tag\":\"${tagName}\",\"message\":\"${env.COMMIT_MSG}\",\"object\":\"${env.GIT_COMMIT}\",\"type\":\"tree\",\"tagger\":{\"name\":\"preagonal-pipeline[bot]\",\"email\":\"119898225+preagonal-pipeline[bot]@users.noreply.github.com\",\"date\":\"${iso8601Date}\"}}'",
 				returnStdout: true
 			);
 			def response = readJSON(text: env.JSON_RESPONSE);
 
 			sh(
-				script: "curl -L -X POST -H \"Accept: application/vnd.github+json\" -H \"Authorization: Bearer ${env.GITHUB_TOKEN}\" -H \"X-GitHub-Api-Version: 2022-11-28\" https://api.github.com/repos/preagonal/gs2engine/git/refs -d '{\"ref\": \"refs/tags/${tagName}\", \"sha\": \"${response.sha}\"}'",
+				script: "curl -L -X POST -H \"Accept: application/vnd.github+json\" -H \"Authorization: Bearer ${env.GITHUB_TOKEN}\" -H \"X-GitHub-Api-Version: 2022-11-28\" https://api.github.com/repos/preagonal/Preagonal.Scripting.gs2engine/git/refs -d '{\"ref\": \"refs/tags/${tagName}\", \"sha\": \"${response.sha}\"}'",
 				returnStdout: true
 			);
 		}
@@ -250,7 +250,7 @@ node('master') {
 
 	if (env.TAG_NAME) {
 		def DESC = sh(returnStdout: true, script: 'cat RELEASE_DESCRIPTION.txt');
-		discordSend(description: "${DESC}", customUsername: "OpenGraal", customAvatarUrl: "https://pbs.twimg.com/profile_images/1895028712/13460_106738052711614_100001262603030_51047_4149060_n_400x400.jpg", footer: "OpenGraal Team", link: "https://github.com/Preagonal/GS2Engine/pkgs/nuget/GS2Engine", result: "SUCCESS", title: "GS2Engine v${env.TAG_NAME} NuGet Package", webhookURL: env.GS2EMU_RELEASE_WEBHOOK);
+		discordSend(description: "${DESC}", customUsername: "OpenGraal", customAvatarUrl: "https://pbs.twimg.com/profile_images/1895028712/13460_106738052711614_100001262603030_51047_4149060_n_400x400.jpg", footer: "OpenGraal Team", link: "https://github.com/Preagonal/Preagonal.Scripting.GS2Engine/pkgs/nuget/Preagonal.Scripting.GS2Engine", result: "SUCCESS", title: "GS2Engine v${env.TAG_NAME} NuGet Package", webhookURL: env.GS2EMU_RELEASE_WEBHOOK);
 	}
 
 	sh("rm -rf ./*");

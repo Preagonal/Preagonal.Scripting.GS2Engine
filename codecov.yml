@@ -1,5 +1,5 @@
 fixes:
-  - "/opt/bitnami/apps/jenkins/jenkins_home/workspace/GS2Engine*::"
+  - "/opt/bitnami/apps/jenkins/jenkins_home/workspace/Preagonal.Scripting.GS2Engine*::"
 coverage:
   status:
     project: true
