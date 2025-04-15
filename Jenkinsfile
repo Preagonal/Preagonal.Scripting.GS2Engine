@@ -250,7 +250,7 @@ node('master') {
 
 	if (env.TAG_NAME) {
 		def DESC = sh(returnStdout: true, script: 'cat RELEASE_DESCRIPTION.txt');
-		discordSend(description: "${DESC}", customUsername: "OpenGraal", customAvatarUrl: "https://pbs.twimg.com/profile_images/1895028712/13460_106738052711614_100001262603030_51047_4149060_n_400x400.jpg", footer: "OpenGraal Team", link: "https://github.com/Preagonal/Preagonal.Scripting.GS2Engine/pkgs/nuget/Preagonal.Scripting.GS2Engine", result: "SUCCESS", title: "GS2Engine v${env.TAG_NAME} NuGet Package", webhookURL: env.GS2EMU_RELEASE_WEBHOOK);
+		discordSend(description: "${DESC}", customUsername: "Preagonal Team", customAvatarUrl: "http://avatars.githubusercontent.com/u/115027903?s=400&u=32e1a4e73e367fc86404530293ecf05b60bb1132&v=4", footer: "Preagonal Team", link: "https://www.nuget.org/packages/Preagonal.Scripting.GS2Engine/${env.TAG_NAME}", result: "SUCCESS", title: "GS2Engine v${env.TAG_NAME} NuGet Package", webhookURL: env.GS2EMU_RELEASE_WEBHOOK);
 	}
 
 	sh("rm -rf ./*");
