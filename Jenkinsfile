@@ -144,11 +144,11 @@ def buildStepDocker() {
 				stage("Pushing NuGet") {
 					customImage.inside("-u 0") {
 						withCredentials([string(credentialsId: 'PREAGONAL_GITHUB_TOKEN', variable: 'GITHUB_TOKEN')]) {
-							sh("dotnet nuget push -s https://nuget.pkg.github.com/Preagonal/index.json -k ${env.GITHUB_TOKEN} Preagonal.Scripting.GS2Engine/bin/Release/*.nupkg;chmod 777 -R .");
+							sh("dotnet nuget push --skip-duplicate -s https://nuget.pkg.github.com/Preagonal/index.json -k ${env.GITHUB_TOKEN} Preagonal.Scripting.GS2Engine/bin/Release/*.nupkg;chmod 777 -R .");
 							discordSend description: "NuGet Successful", footer: "", link: env.BUILD_URL, result: currentBuild.currentResult, title: "[${split_job_name[0]}] Artifact Successful: ${fixed_job_name} #${env.BUILD_NUMBER}", webhookURL: env.GS2EMU_WEBHOOK;
 						}
 						withCredentials([string(credentialsId: 'PREAGONAL_NUGET_TOKEN', variable: 'NUGET_TOKEN')]) {
-							sh("dotnet nuget push -s https://api.nuget.org/v3/index.json -k ${env.NUGET_TOKEN} Preagonal.Scripting.GS2Engine/bin/Release/*.nupkg;chmod 777 -R .");
+							sh("dotnet nuget push --skip-duplicate -s https://api.nuget.org/v3/index.json -k ${env.NUGET_TOKEN} Preagonal.Scripting.GS2Engine/bin/Release/*.nupkg;chmod 777 -R .");
 							discordSend description: "NuGet Successful", footer: "", link: env.BUILD_URL, result: currentBuild.currentResult, title: "[${split_job_name[0]}] Artifact Successful: ${fixed_job_name} #${env.BUILD_NUMBER}", webhookURL: env.GS2EMU_WEBHOOK;
 						}
 					}
