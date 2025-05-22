@@ -1,0 +1,5 @@
+fixes:
+  - "/opt/bitnami/apps/jenkins/jenkins_home/workspace/*GS2Engine*::"
+coverage:
+  status:
+    project: true
