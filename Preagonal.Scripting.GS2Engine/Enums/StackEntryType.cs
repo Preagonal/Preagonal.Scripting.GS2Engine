@@ -11,4 +11,5 @@ public enum StackEntryType
 	Player,
 	Function,
 	Script,
+	ScriptProperty,
 }

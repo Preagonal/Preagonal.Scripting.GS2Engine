@@ -5,17 +5,18 @@ namespace Preagonal.Scripting.GS2Engine.Models;
 
 public class StackEntry : IStackEntry
 {
-	internal StackEntry(StackEntryType type, object? value)
+	internal StackEntry(StackEntryType type, object? value, object? parent = null)
 	{
 		Type  = type;
 		Value = value;
+		Parent = parent;
 	}
 
 	private object?                                           Value          { get; set; }
-	private VariableCollection.VariableCollectionSetCallback? SetterCallback { get; set; }
-	private VariableCollection.VariableCollectionGetCallback? GetterCallback { get; set; }
+	private object?                                           Parent         { get; set; }
 	public  StackEntryType                                    Type           { get; private set; }
 	public  object?                                           GetValue()     => Value;
+	public  object?                                           GetParent()    => Parent;
 
 	public T1? GetValue<T1>()
 	{
@@ -31,11 +32,12 @@ public class StackEntry : IStackEntry
 	{
 		try
 		{
+			/*
 			if (GetterCallback != null)
 			{
 				value = GetterCallback();
 			}
-			else if (Value?.GetType() == typeof(T))
+			else */if (Value?.GetType() == typeof(T))
 			{
 				value = (T)Value;
 			}
@@ -74,10 +76,6 @@ public class StackEntry : IStackEntry
 		}
 	}
 
-	public void SetCallback(VariableCollection.VariableCollectionSetCallback setCallback) => SetterCallback = setCallback;
-
-	public void GetCallback(VariableCollection.VariableCollectionGetCallback getCallback) => GetterCallback = getCallback;
-
 	public void SetValue(object? value, bool skipCallback = false)
 	{
 		Value = value switch
@@ -105,7 +103,10 @@ public class StackEntry : IStackEntry
 			_        => StackEntryType.Array,
 		};
 
+		/*
 		if (SetterCallback != null && !skipCallback)
 			SetterCallback(value);
+			*/
+
 	}
 }

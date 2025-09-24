@@ -1,11 +1,8 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using Preagonal.Scripting.GS2Engine.Extensions;
 using Preagonal.Scripting.GS2Engine.GS2.Script;
-using Preagonal.Scripting.GS2Engine.Models;
 using Preagonal.Scripting.GS2Engine.TestApp.Objects;
 using Xunit;
-using static Preagonal.Scripting.GS2Engine.GS2.Script.Script;
 
 namespace Preagonal.Scripting.GS2Engine.TestApp;
 
@@ -31,6 +28,8 @@ internal static class Program
 		var calledTimes = 0;
 		var receivedStrings = new Dictionary<int, string>();
 		var path = $"{Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)}{Path.DirectorySeparatorChar}scripts/test.gs2bc";
+
+		/*
 		Command echoCommand = delegate (ScriptMachine machine, IStackEntry[]? args)
 		{
 			if (!(args?.Length > 0)) return 0.ToStackEntry();
@@ -49,9 +48,11 @@ internal static class Program
 			echoCommand,
 			(_, _) => echoCommand
 		);
+		*/
 
 		ConcurrentDictionary<int, Drawing?> Drawings = new();
 
+		/*
 		Command showimgCommand = delegate(ScriptMachine machine, IStackEntry[]? args)
 		{
 			if (!(args?.Length > 3)) return 0.ToStackEntry();
@@ -140,6 +141,7 @@ internal static class Program
 			getimgwidth,
 			(_, _) => getimgwidth
 		);
+		*/
 
 		const string scriptText =
 			"""

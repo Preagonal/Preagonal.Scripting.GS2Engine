@@ -5,7 +5,6 @@ namespace Preagonal.Scripting.GS2Engine.Models;
 
 public class VariableCollection
 {
-	public delegate void    VariableCollectionSetCallback(object? value);
 	public delegate object? VariableCollectionGetCallback();
 
 	private readonly Dictionary<string, IStackEntry>                _collection = new();
@@ -37,22 +36,6 @@ public class VariableCollection
 			_collection.Add(variable, value);
 
 		return _collection[variable];
-	}
-
-	protected void SetCallback(TString variable, VariableCollectionSetCallback setCallback)
-	{
-		if (!ContainsVariable(variable))
-			_collection.Add(variable, 0.ToStackEntry());
-
-		_collection[variable].SetCallback(setCallback);
-	}
-
-	protected void GetCallback(TString variable, VariableCollectionGetCallback getCallback)
-	{
-		if (!ContainsVariable(variable))
-			_collection.Add(variable, 0.ToStackEntry());
-
-		_collection[variable].GetCallback(getCallback);
 	}
 
 	public IStackEntry SetVariable(TString variable, IStackEntry value) => AddOrUpdate(variable, value);

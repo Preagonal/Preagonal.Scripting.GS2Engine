@@ -9,8 +9,8 @@ namespace Preagonal.Scripting.GS2Engine.Extensions;
 
 public static class StackEntryExtensions
 {
-	public static StackEntry ToStackEntry(this object? stackObject, bool isVariable = false) =>
-		new(isVariable ? StackEntryType.Variable : GetStackEntryType(stackObject), FixStackValue(stackObject));
+	public static StackEntry ToStackEntry(this object? stackObject, bool isVariable = false, object? parent = null) =>
+		new(isVariable ? StackEntryType.Variable : GetStackEntryType(stackObject), FixStackValue(stackObject), parent);
 
 	private static object? FixStackValue(object? stackObject)
 	{
@@ -29,7 +29,8 @@ public static class StackEntryExtensions
 
 	private static StackEntryType GetStackEntryType(object? stackObject)
 	{
-		switch (Type.GetTypeCode(stackObject?.GetType()))
+		var stackType = stackObject?.GetType();
+		switch (Type.GetTypeCode(stackType))
 		{
 			case TypeCode.Boolean:
 				return StackEntryType.Boolean;
@@ -50,12 +51,15 @@ public static class StackEntryExtensions
 				return StackEntryType.String;
 			default:
 			{
-				var stackType = stackObject?.GetType();
 				if (stackType == typeof(TString))
 					return StackEntryType.String;
 
 				if (stackType == typeof(Script.Command))
 					return StackEntryType.Function;
+
+				if (stackType is { IsGenericType: true } && stackType.GetGenericTypeDefinition() == typeof(ScriptProperty<>))
+					return StackEntryType.ScriptProperty;
+
 
 				if (stackType == typeof(Script))
 					return StackEntryType.Script;

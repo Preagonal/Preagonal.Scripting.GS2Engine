@@ -14,28 +14,26 @@ using static System.IO.File;
 
 namespace Preagonal.Scripting.GS2Engine.GS2.Script;
 
-public class Script : VariableCollection
+public class Script : ScriptVariable
 {
-	public delegate IStackEntry Command(ScriptMachine machine, IStackEntry[]? args);
-
-	public static readonly VariableCollection                                GlobalVariables = new();
-	public static readonly ConcurrentDictionary<string, VariableCollection?> GlobalObjects   = new();
-	public static readonly ConcurrentDictionary<string, Command>             GlobalFunctions = new();
-	public static readonly ConcurrentDictionary<string, Script>              GlobalScripts   = new();
-
-	private readonly List<TString>                      _strings  = [];
-	public readonly  Dictionary<string, FunctionParams> Functions = new();
-	private          ScriptCom[]                        _bytecode = [];
-	public readonly  VariableCollection?                RefObject = null;
-	public           bool                               ExecutionEnabled  { get; private set; } = true;
-	public           TString                            Name              { get; set; }
-	public           TString                            File              { get; set; }
-	public           ScriptType                         Type              { get; }
-	private          int                                Gs1Flags          { get; set; }
-	public           ScriptMachine                      Machine           { get; }
-	public           DateTime?                          Timer             { get; private set; }
-	public           Dictionary<string, Command>        ExternalFunctions { get; }              = new();
-	public           ScriptCom[]                        Bytecode          => _bytecode;
+	public delegate            IStackEntry                                  Command(ScriptMachine machine, IStackEntry[]? args);
+	public static readonly     Dictionary<string, IScriptProperties>        GlobalProperties   = [];
+	public static readonly     ScriptVariable                               GlobalVariables    = new();
+	public static readonly     ConcurrentDictionary<string, ScriptVariable> GlobalObjects      = new();
+	public static readonly     ConcurrentDictionary<string, Script>         GlobalScripts      = new();
+	public new static readonly ScriptObjProperties                          PropertiesInstance = [];
+	public override            IScriptProperties                            Properties => PropertiesInstance;
+	private readonly           List<TString>                                _strings  = [];
+	public readonly            Dictionary<string, FunctionParams>           Functions = new();
+	private                    ScriptCom[]                                  _bytecode = [];
+	public readonly            ScriptVariable?                              RefObject = null;
+	public                     bool                                         ExecutionEnabled { get; private set; } = true;
+	public                     TString                                      File             { get; set; }
+	public                     ScriptType                                   Type             { get; }
+	private                    int                                          Gs1Flags         { get; set; }
+	public                     ScriptMachine                                Machine          { get; }
+	public                     DateTime?                                    Timer            { get; set; }
+	public                     ScriptCom[]                                  Bytecode         => _bytecode;
 
 
 
@@ -50,7 +48,7 @@ public class Script : VariableCollection
 
 	public Script(
 		TString bytecodeFile,
-		VariableCollection? refObject = null,
+		ScriptVariable? refObject = null,
 		ScriptType? type = null
 	)
 	{
@@ -68,7 +66,7 @@ public class Script : VariableCollection
 	public Script(
 		TString name,
 		byte[] bytecode,
-		VariableCollection? refObject = null,
+		ScriptVariable? refObject = null,
 		ScriptType? type = null
 	)
 	{
@@ -116,19 +114,6 @@ public class Script : VariableCollection
 		if (!GlobalScripts.ContainsKey(GetHashCode().ToString()))
 			GlobalScripts.AddOrUpdate(GetHashCode().ToString(), this, (s, script) => Script.GlobalScripts[s] = script);
 
-		foreach (var obj in GlobalFunctions)
-			ExternalFunctions.Add(obj.Key, obj.Value);
-
-		ExternalFunctions.Add(
-			"settimer",
-			delegate(ScriptMachine machine, IStackEntry[]? args)
-			{
-				if (args?.Length > 0 && ExecutionEnabled)
-					SetTimer((double)(machine.GetEntry(args[0]).GetValue() ?? 0));
-				return 0.ToStackEntry();
-			}
-		);
-
 		EnableExecution();
 	}
 
@@ -136,7 +121,6 @@ public class Script : VariableCollection
 	{
 		Machine.Reset();
 		Functions.Clear();
-		ExternalFunctions.Clear();
 		_bytecode = [];
 		_strings.Clear();
 		Clear();
@@ -478,7 +462,7 @@ public class Script : VariableCollection
 		return 0.ToStackEntry();
 	}
 
-	private void SetTimer(double value)
+	public void SetTimer(double value)
 	{
 		Timer = DateTime.UtcNow.AddSeconds(value);
 		/*try
@@ -514,7 +498,7 @@ public class Script : VariableCollection
 		await Execute(eventName).ConfigureAwait(false);
 	}
 
-	public void AddObjectReference(string objectType, VariableCollection obj)
+	public void AddObjectReference(string objectType, ScriptVariable obj)
 	{
 		if (GlobalObjects.ContainsKey(objectType))
 			GlobalObjects[objectType] = obj;
