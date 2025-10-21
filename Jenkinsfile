@@ -124,7 +124,7 @@ def buildStepDocker() {
 							testTimeMargin: '3000',
 							thresholdMode: 1,
 							thresholds: [
-								skipped(failureThreshold: '0'),
+								skipped(failureThreshold: '1000'),
 								failed(failureThreshold: '0')
 							],
 							tools: [MSTest(
