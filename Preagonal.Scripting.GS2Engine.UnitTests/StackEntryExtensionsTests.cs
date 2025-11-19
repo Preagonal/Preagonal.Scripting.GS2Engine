@@ -204,13 +204,14 @@ public class StackEntryExtensionsTests
 	{
 		//Arrange
 		const bool val = true;
+		const double expected = 1.0d;
 
 		//Act
 		var test = val.ToStackEntry();
 
 		//Assert
 		Assert.Equal(StackEntryType.Boolean, test.Type);
-		Assert.Equal(typeof(bool), test.GetValue()?.GetType());
-		Assert.Equal(val, test.GetValue());
+		Assert.Equal(typeof(double), test.GetValue()?.GetType());
+		Assert.Equal(expected, test.GetValue());
 	}
 }

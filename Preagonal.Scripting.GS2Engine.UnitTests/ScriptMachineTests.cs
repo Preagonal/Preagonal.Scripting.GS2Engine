@@ -339,7 +339,7 @@ public class ScriptMachineTests
 		var result = await script.Call("onCreated");
 
 		//Assert
-		Assert.Equal(true, result.GetValue()!);
+		Assert.Equal(1.0d, result.GetValue()!);
 	}
 
 	[Fact(Skip = "Waiting for fix in GS2Compiler")]
@@ -424,7 +424,7 @@ public class ScriptMachineTests
 		var result = await script.Call("onCreated");
 
 		//Assert
-		Assert.Equal(true, result.GetValue()!);
+		Assert.Equal(1.0d, result.GetValue()!);
 	}
 
 	[Fact(Skip = "fix later")]
