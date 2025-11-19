@@ -403,7 +403,7 @@ public class Script : ScriptVariable
 			if (args == null) return await Execute(eventName).ConfigureAwait(false);
 
 			var callStack = new Stack<IStackEntry>();
-			foreach (var variable in args.Reverse())
+			foreach (var variable in args.AsEnumerable().Reverse())
 			{
 				switch (variable)
 				{

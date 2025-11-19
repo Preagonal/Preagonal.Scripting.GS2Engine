@@ -23,7 +23,7 @@ public class TStringTests
 		TString stringy = new();
 
 		//Assert
-		Assert.Equal(stringy.buffer, []);
+		Assert.Empty(stringy.buffer);
 	}
 
 	[Fact]

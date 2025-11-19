@@ -22,7 +22,7 @@ public static class StackEntryExtensions
 			double d  => d,
 			float f   => (double)f,
 			decimal o => (double)o,
-			bool b    => b,
+			bool b    => b?1.0d:0.0d,
 			_         => stackObject,
 		};
 	}
