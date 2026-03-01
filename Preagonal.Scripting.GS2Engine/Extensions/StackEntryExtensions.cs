@@ -78,7 +78,7 @@ public static class StackEntryExtensions
 				    stackType.GetGenericTypeDefinition().IsAssignableFrom(typeof(List<>)))
 					return StackEntryType.Array;
 
-				throw new ArgumentOutOfRangeException(nameof(stackObject));
+				throw new ArgumentOutOfRangeException(nameof(stackType), $"StackType: {stackType}");
 			}
 		}
 	}

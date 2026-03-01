@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Preagonal.Scripting.GS2Engine.Extensions;
 using Preagonal.Scripting.GS2Engine.Enums;
 using Preagonal.Scripting.GS2Engine.Exceptions;
+using Preagonal.Scripting.GS2Engine.Extensions;
 using Preagonal.Scripting.GS2Engine.GS2.ByteCode;
 using Preagonal.Scripting.GS2Engine.Models;
 using static Preagonal.Scripting.GS2Engine.Enums.StackEntryType;
@@ -15,7 +15,7 @@ namespace Preagonal.Scripting.GS2Engine.GS2.Script;
 
 public class ScriptMachine
 {
-	private readonly Script             _script;
+	private readonly Script         _script;
 	private readonly ScriptVariable _tempVariables = new();
 
 	private delegate IStackEntry OpcodeHandler(ScriptCom op, ref int index);
@@ -220,7 +220,7 @@ public class ScriptMachine
 								(cmd as Script.Command)?.Invoke(this, callParams.ToArray()) ?? 0.ToStackEntry()
 							);
 							break;
-						case StackEntryType.ScriptProperty:
+						case ScriptProperty:
 							var scriptProperty = cmd as IScriptProperty;
 							var inst           = opWith is { Count: > 0 }? opWith.Peek().GetValue() : null;
 
@@ -270,20 +270,21 @@ public class ScriptMachine
 						*/
 
 						op.LoopCount += 1;
-						index        =  _indexPos;
 					}
 					else
 					{
 						op.Value        = index;
 						op.VariableName = null;
-						index           = _indexPos;
 					}
+
+					index        =  _indexPos;
 
 					break;
 				case Opcode.OP_JMP:
 
 				{
 					//index = indexPos;
+					Tools.DebugLine("");
 				}
 
 					break;
@@ -300,10 +301,10 @@ public class ScriptMachine
 					stack.Push(new StackEntry(ArrayStart, null));
 					break;
 				case Opcode.OP_TYPE_TRUE:
-					stack.Push(true.ToStackEntry());
+					stack.Push(1.ToStackEntry());
 					break;
 				case Opcode.OP_TYPE_FALSE:
-					stack.Push(false.ToStackEntry());
+					stack.Push(0.ToStackEntry());
 					break;
 				case Opcode.OP_TYPE_NULL:
 					stack.Push(0.ToStackEntry());
@@ -489,7 +490,7 @@ public class ScriptMachine
 					stack.Push(newArray.ToStackEntry());
 					break;
 				case Opcode.OP_SETARRAY:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_INLINE_NEW:
 					if (stack.Count > 0)
 					{
@@ -501,7 +502,7 @@ public class ScriptMachine
 					}
 					break;
 				case Opcode.OP_MAKEVAR:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_NEW_OBJECT:
 					var newObject      = stack.Pop();
 					var newObjectParam = stack.Pop();
@@ -523,7 +524,7 @@ public class ScriptMachine
 				case Opcode.OP_INLINE_CONDITIONAL:
 
 					var inlineConditional = stack.Pop();
-					if (inlineConditional.GetValue<bool>() != false) {
+					if (inlineConditional.GetValue<double>() != 0) {
 						inlineConditional.SetValue(1.0d);
 					}
 					stack.Push(inlineConditional);
@@ -649,9 +650,12 @@ public class ScriptMachine
 					stack.Push(Math.Pow(powB, powA).ToStackEntry());
 					break;
 				case Opcode.OP_NOT:
+					var notVar = GetEntryValue<double>(stack.Pop());
+
+					stack.Push((notVar == 0?true:false).ToStackEntry());
 					break;
 				case Opcode.OP_UNARYSUB:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_EQ:
 					var eq1 = GetEntryValue<object?>(stack.Pop());
 					var eq2 = GetEntryValue<object?>(stack.Pop());
@@ -687,17 +691,35 @@ public class ScriptMachine
 					stack.Push((gteB >= gteA).ToStackEntry());
 					break;
 				case Opcode.OP_BWO:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_BWA:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_IN_RANGE:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_IN_OBJ:
+					var inObj = stack.Pop();
+					var isIn  = stack.Pop();
+					if (inObj.Type == StackEntryType.Array)
+					{
+						var inObjArray = inObj.GetValue<List<object?>>();
+
+						var boolVal = inObjArray?.Contains(isIn?.GetValue());
+
+						if (!boolVal.HasValue)
+						{
+							stack.Push(0.0d.ToStackEntry());
+							break;
+						}
+
+						stack.Push((boolVal.Value?1.0d:0.0d).ToStackEntry());
+					}
+
+					stack.Push(0.0d.ToStackEntry());
 					break;
 				case Opcode.OP_OBJ_INDEX:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_TYPE:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_FORMAT:
 					var format  = stack.Pop();
 					var objects = stack.Select(x => GetEntryValue<object>(x)).ToArray();
@@ -706,12 +728,13 @@ public class ScriptMachine
 					stack.Push(formatted.ToStackEntry());
 					break;
 				case Opcode.OP_INT:
+					stack.Push(((int)GetEntryValue<double>(stack.Pop())).ToStackEntry());
 					break;
 				case Opcode.OP_ABS:
 					stack.Push(Math.Abs(GetEntryValue<double>(stack.Pop())).ToStackEntry());
 					break;
 				case Opcode.OP_RANDOM:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_SIN:
 					var sinVal = Math.Sin(GetEntryValue<double>(stack.Pop()));
 					sinVal = Math.Abs(sinVal) < 0.000001 ? 0.0f : sinVal;
@@ -728,17 +751,17 @@ public class ScriptMachine
 					stack.Push(atanVal.ToStackEntry());
 					break;
 				case Opcode.OP_EXP:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_LOG:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_MIN:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_MAX:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_GETANGLE:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_GETDIR:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_VECX:
 					var vecxDir = (int)stack.Pop().GetValue<double>();
 					var vecxVal = (vecxDir % 4) switch
@@ -760,25 +783,29 @@ public class ScriptMachine
 					stack.Push(vecyVal.ToStackEntry());
 					break;
 				case Opcode.OP_OBJ_INDICES:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_LINK:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_CHAR:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_TRIM:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_LENGTH:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_POS:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_JOIN:
 					var joinA = GetEntryValue<TString>(stack.Pop());
 					var joinB = GetEntryValue<TString>(stack.Pop());
 					stack.Push($"{joinB}{joinA}".ToStackEntry());
 					break;
 				case Opcode.OP_OBJ_CHARAT:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_SUBSTR:
+					var subStrLen = GetEntryValue<double>(stack.Pop());
+					var subStrStart = GetEntryValue<double>(stack.Pop());
+					var subStr = GetEntryValue<TString>(stack.Pop());
+					stack.Push(subStr?.ToString().Substring((int)subStrStart, (int)subStrLen).ToStackEntry()??0.ToStackEntry());
 					break;
 				case Opcode.OP_OBJ_STARTS:
 					var obj        = GetEntryValue<TString>(stack.Pop()) ?? "";
@@ -788,13 +815,13 @@ public class ScriptMachine
 					);
 					break;
 				case Opcode.OP_OBJ_ENDS:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_TOKENIZE:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_TRANSLATE:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_POSITIONS:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_SIZE:
 					var objSizeVar = GetEntry(stack.Pop()).GetValue();
 
@@ -841,25 +868,25 @@ public class ScriptMachine
 
 					break;
 				case Opcode.OP_ARRAY_MULTIDIM:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_ARRAY_MULTIDIM_ASSIGN:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_SUBARRAY:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_ADDSTRING:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_DELETESTRING:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_REMOVESTRING:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_REPLACESTRING:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_INSERTSTRING:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_OBJ_CLEAR:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_ARRAY_NEW_MULTIDIM:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_WITH:
 					opWith?.Push(stack.Pop());
 					break;
@@ -903,17 +930,17 @@ public class ScriptMachine
 					);
 					break;
 				case Opcode.OP_PLAYERO:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_LEVEL:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_TEMP:
 					stack.Push(new StackEntry(StackEntryType.Array, _tempVariables));
 					_useTemp = true;
 					break;
 				case Opcode.OP_PARAMS:
-					break;
+					break;//throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 				case Opcode.OP_NUM_OPS:
-					break;
+					throw new NotImplementedException($"OP({op.OpCode:D}): {op.OpCode:G}");
 			}
 		}
 

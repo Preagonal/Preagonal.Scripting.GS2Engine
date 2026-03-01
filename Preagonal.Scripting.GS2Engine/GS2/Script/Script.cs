@@ -6,8 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Preagonal.Scripting.GS2Engine.Extensions;
 using Preagonal.Scripting.GS2Engine.Enums;
+using Preagonal.Scripting.GS2Engine.Extensions;
 using Preagonal.Scripting.GS2Engine.GS2.ByteCode;
 using Preagonal.Scripting.GS2Engine.Models;
 using static System.IO.File;
@@ -112,7 +112,7 @@ public class Script : ScriptVariable
 	private void Init()
 	{
 		if (!GlobalScripts.ContainsKey(GetHashCode().ToString()))
-			GlobalScripts.AddOrUpdate(GetHashCode().ToString(), this, (s, script) => Script.GlobalScripts[s] = script);
+			GlobalScripts.AddOrUpdate(GetHashCode().ToString(), this, (s, script) => GlobalScripts[s] = script);
 
 		EnableExecution();
 	}
@@ -388,7 +388,8 @@ public class Script : ScriptVariable
 		catch (Exception e)
 		{
 			Tools.DebugLine(e.Message);
-			return 0.ToStackEntry();
+			throw;
+			//return 0.ToStackEntry();
 		}
 	}
 
