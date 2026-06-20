@@ -843,6 +843,18 @@ public class ScriptMachine
 						stack.Push(
 							((List<string>?)array)?[(int)arrayIndex].ToStackEntry() ?? new object().ToStackEntry()
 						);
+					else if (array is TString tStringArray)
+					{
+						var list = tStringArray.ToString().Split(',');
+						var arrayOffset = (int)arrayIndex;
+						stack.Push((arrayOffset >= 0 && arrayOffset < list.Length ? list[arrayOffset] : "").ToStackEntry());
+					}
+					else if (array is string stringArray)
+					{
+						var list = stringArray.Split(',');
+						var arrayOffset = (int)arrayIndex;
+						stack.Push((arrayOffset >= 0 && arrayOffset < list.Length ? list[arrayOffset] : "").ToStackEntry());
+					}
 					else if (array?.GetType() == typeof(List<int>))
 						stack.Push(
 							((List<int>?)array)?[(int)arrayIndex].ToStackEntry() ?? new object().ToStackEntry()
