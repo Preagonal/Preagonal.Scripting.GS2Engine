@@ -13,11 +13,11 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 	public override IScriptProperties Properties => PropertiesInstance;
 
 	protected readonly string  Id;
-	protected readonly Script? Script;
+	protected readonly Script Script;
 
-	public GuiControl(string id, Script? script)
+	public GuiControl(string id, Script script)
 	{
-		Script.GlobalVariables.AddOrUpdate(id.ToLower(), this.ToStackEntry());
+		Script?.ScriptManager.GlobalVariables.AddOrUpdate(id.ToLower(), this.ToStackEntry());
 		Console.WriteLine($"Creating control with ID {id}");
 		Id           = id;
 		Script       = script;

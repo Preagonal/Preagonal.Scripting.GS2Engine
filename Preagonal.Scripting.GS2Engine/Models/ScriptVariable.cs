@@ -3,9 +3,14 @@ using System.Linq;
 
 namespace Preagonal.Scripting.GS2Engine.Models;
 
-public class ScriptVariable(string name = "") : VariableCollection, IScriptVariable
+public class ScriptVariable : VariableCollection, IScriptVariable
 {
-	public string Name { get; protected set; } = name;
+	public ScriptVariable(string name = "")
+	{
+		Name = name;
+	}
+
+	public string Name { get; protected set; }
 
 	public static readonly ScriptVariableProperties PropertiesInstance = [];
 	public virtual         IScriptProperties        Properties => PropertiesInstance;

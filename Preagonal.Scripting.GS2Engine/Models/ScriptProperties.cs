@@ -16,7 +16,7 @@ public class ScriptProperties<T> : HashSet<IScriptProperty>, IScriptProperties w
 		if (Type.IsGenericType)
 			name += $"<{Type.GetGenericArguments()[0].Name}>";
 
-		Script.GlobalProperties.Add(name, this);
+		ScriptManager.GlobalProperties.Add(name, this);
 	}
 
 	private Type               Type             { get; }
@@ -48,7 +48,7 @@ public class ScriptProperties<T> : HashSet<IScriptProperty>, IScriptProperties w
 		if (type.IsGenericType)
 			name += $"<{type.GetGenericArguments()[0].Name}>";
 
-		return Script.GlobalProperties.GetValueOrDefault(name);
+		return ScriptManager.GlobalProperties.GetValueOrDefault(name);
 	}
 
 	public static void AddProperties(IScriptProperties? properties, PropertyDefinitions<T> definitions)

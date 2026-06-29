@@ -571,7 +571,7 @@ public class ScriptMachine
 					}
 					else if (!_useTemp)
 					{
-						Script.GlobalVariables.AddOrUpdate((variable.GetValue() ?? "").ToString()?.ToLower() ?? string.Empty, GetEntry(val));
+						_script.ScriptManager.GlobalVariables.AddOrUpdate((variable.GetValue() ?? "").ToString()?.ToLower() ?? string.Empty, GetEntry(val));
 					}
 					else
 					{
@@ -977,12 +977,12 @@ public class ScriptMachine
 		var             foundVariable = false;
 		switch (type)
 		{
-			case Variable when Script.GlobalProperties[nameof(ScriptUniverse)].Any(x => x.PropertyName.Equals(stackEntry.GetValue()?.ToString(),  StringComparison.CurrentCultureIgnoreCase)):
-				retVal        = Script.GlobalProperties[nameof(ScriptUniverse)].First(x => x.PropertyName.Equals(stackEntry.GetValue()?.ToString(),  StringComparison.CurrentCultureIgnoreCase)).ToStackEntry();
+			case Variable when ScriptManager.GlobalProperties[nameof(ScriptUniverse)].Any(x => x.PropertyName.Equals(stackEntry.GetValue()?.ToString(),  StringComparison.CurrentCultureIgnoreCase)):
+				retVal        = ScriptManager.GlobalProperties[nameof(ScriptUniverse)].First(x => x.PropertyName.Equals(stackEntry.GetValue()?.ToString(),  StringComparison.CurrentCultureIgnoreCase)).ToStackEntry();
 				foundVariable = true;
 				break;
-			case Variable when Script.GlobalProperties[nameof(Script)].Any(x => x.PropertyName.Equals(stackEntry.GetValue()?.ToString(),  StringComparison.CurrentCultureIgnoreCase)):
-				retVal        = Script.GlobalProperties[nameof(Script)].First(x => x.PropertyName.Equals(stackEntry.GetValue()?.ToString(),  StringComparison.CurrentCultureIgnoreCase)).ToStackEntry();
+			case Variable when ScriptManager.GlobalProperties[nameof(Script)].Any(x => x.PropertyName.Equals(stackEntry.GetValue()?.ToString(),  StringComparison.CurrentCultureIgnoreCase)):
+				retVal        = ScriptManager.GlobalProperties[nameof(Script)].First(x => x.PropertyName.Equals(stackEntry.GetValue()?.ToString(),  StringComparison.CurrentCultureIgnoreCase)).ToStackEntry();
 				foundVariable = true;
 				break;
 			case Variable
@@ -999,23 +999,23 @@ public class ScriptMachine
 				foundVariable = true;
 				break;
 			case Variable
-				when Script.GlobalVariables.ContainsVariable(
+				when _script.ScriptManager.GlobalVariables.ContainsVariable(
 					stackEntry.GetValue()?.ToString()?.ToLower() ?? string.Empty
 				):
-				retVal        = Script.GlobalVariables[stackEntry.GetValue()?.ToString()?.ToLower() ?? string.Empty];
+				retVal        = _script.ScriptManager.GlobalVariables[stackEntry.GetValue()?.ToString()?.ToLower() ?? string.Empty];
 				foundVariable = true;
 				break;
-			case Variable when Script.GlobalObjects.ContainsKey(
+			case Variable when _script.ScriptManager.GlobalObjects.ContainsKey(
 				stackEntry.GetValue()?.ToString()?.ToLower() ?? string.Empty
 			):
-				retVal = Script.GlobalObjects[stackEntry.GetValue()?.ToString()?.ToLower() ?? string.Empty]
-				               .ToStackEntry();
+				retVal = _script.ScriptManager.GlobalObjects[stackEntry.GetValue()?.ToString()?.ToLower() ?? string.Empty]
+				                .ToStackEntry();
 				foundVariable = true;
 				break;
 			default:
 
 
-				if (stackEntry.GetValue() is IScriptProperty scriptProperty && scriptProperty!.HasReadMethod)
+				if (stackEntry.GetValue() is IScriptProperty { HasReadMethod: true } scriptProperty)
 				{
 					retVal        = scriptProperty.Read(stackEntry.GetParent()!).ToStackEntry();
 					foundVariable = true;

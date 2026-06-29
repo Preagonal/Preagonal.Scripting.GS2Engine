@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -16,42 +15,43 @@ namespace Preagonal.Scripting.GS2Engine.GS2.Script;
 
 public class Script : ScriptVariable
 {
-	public delegate            IStackEntry                                  Command(ScriptMachine machine, IStackEntry[]? args);
-	public static readonly     Dictionary<string, IScriptProperties>        GlobalProperties   = [];
-	public static readonly     ScriptVariable                               GlobalVariables    = new();
-	public static readonly     ConcurrentDictionary<string, ScriptVariable> GlobalObjects      = new();
-	public static readonly     ConcurrentDictionary<string, Script>         GlobalScripts      = new();
-	public new static readonly ScriptObjProperties                          PropertiesInstance = [];
-	public override            IScriptProperties                            Properties => PropertiesInstance;
-	private readonly           List<TString>                                _strings  = [];
-	public readonly            Dictionary<string, FunctionParams>           Functions = new();
-	private                    ScriptCom[]                                  _bytecode = [];
-	public readonly            ScriptVariable?                              RefObject = null;
-	public                     bool                                         ExecutionEnabled { get; private set; } = true;
-	public                     TString                                      File             { get; set; }
-	public                     ScriptType                                   Type             { get; }
-	private                    int                                          Gs1Flags         { get; set; }
-	public                     ScriptMachine                                Machine          { get; }
-	public                     DateTime?                                    Timer            { get; set; }
-	public                     ScriptCom[]                                  Bytecode         => _bytecode;
+	public delegate            IStackEntry                        Command(ScriptMachine machine, IStackEntry[]? args);
+	public new static readonly ScriptObjProperties                PropertiesInstance = [];
+	public override            IScriptProperties                  Properties => PropertiesInstance;
+	private readonly           List<TString>                      _strings  = [];
+	public readonly            Dictionary<string, FunctionParams> Functions = new();
+	private                    ScriptCom[]                        _bytecode = [];
+	public readonly            ScriptVariable?                    RefObject = null;
+	public                     bool                               ExecutionEnabled { get; private set; } = true;
+	public                     TString                            File             { get; set; }
+	public                     ScriptType                         Type             { get; }
+	private                    int                                Gs1Flags         { get; set; }
+	public                     ScriptMachine                      Machine          { get; }
+	public                     DateTime?                          Timer            { get; set; }
+	public                     ScriptCom[]                        Bytecode         => _bytecode;
 
 
 
-	public Script(ScriptType type)
+	public Script(IScriptManager scriptManager, ScriptType type)
 	{
-		Name      = string.Empty;
-		File      = string.Empty;
-		RefObject = this;
-		Machine   = new(this);
-		Type      = type;
+		_             = Properties;
+		ScriptManager = scriptManager;
+		Name          = string.Empty;
+		File          = string.Empty;
+		RefObject     = this;
+		Machine       = new(this);
+		Type          = type;
 	}
 
 	public Script(
+		IScriptManager scriptManager,
 		TString bytecodeFile,
 		ScriptVariable? refObject = null,
 		ScriptType? type = null
 	)
 	{
+		_             = Properties;
+		ScriptManager = scriptManager;
 		Name      = Path.GetFileNameWithoutExtension(bytecodeFile);
 		File      = bytecodeFile;
 		RefObject = refObject;
@@ -64,17 +64,20 @@ public class Script : ScriptVariable
 	}
 
 	public Script(
+		IScriptManager scriptManager,
 		TString name,
 		byte[] bytecode,
 		ScriptVariable? refObject = null,
 		ScriptType? type = null
 	)
 	{
-		Name      = name;
-		File      = "";
-		RefObject = refObject;
-		Machine   = new(this);
-		Type      = type ?? ScriptType.Weapon;
+		_             = Properties;
+		ScriptManager = scriptManager;
+		Name          = name;
+		File          = "";
+		RefObject     = refObject;
+		Machine       = new(this);
+		Type          = type ?? ScriptType.Weapon;
 
 		SetStream(bytecode);
 
@@ -83,8 +86,8 @@ public class Script : ScriptVariable
 
 	~Script()
 	{
-		if (GlobalScripts.ContainsKey(GetHashCode().ToString()))
-			GlobalScripts.TryRemove(GetHashCode().ToString(), out _);
+		if (ScriptManager.GlobalScripts.ContainsKey(GetHashCode().ToString()))
+			ScriptManager.GlobalScripts.TryRemove(GetHashCode().ToString(), out _);
 	}
 
 	public void UpdateFromFile(string scriptFile)
@@ -111,8 +114,8 @@ public class Script : ScriptVariable
 
 	private void Init()
 	{
-		if (!GlobalScripts.ContainsKey(GetHashCode().ToString()))
-			GlobalScripts.AddOrUpdate(GetHashCode().ToString(), this, (s, script) => GlobalScripts[s] = script);
+		if (!ScriptManager.GlobalScripts.ContainsKey(GetHashCode().ToString()))
+			ScriptManager.GlobalScripts.AddOrUpdate(GetHashCode().ToString(), this, (s, script) => ScriptManager.GlobalScripts[s] = script);
 
 		EnableExecution();
 	}
@@ -501,9 +504,11 @@ public class Script : ScriptVariable
 
 	public void AddObjectReference(string objectType, ScriptVariable obj)
 	{
-		if (GlobalObjects.ContainsKey(objectType))
-			GlobalObjects[objectType] = obj;
+		if (ScriptManager.GlobalObjects.ContainsKey(objectType))
+			ScriptManager.GlobalObjects[objectType] = obj;
 		else
-			GlobalObjects.AddOrUpdate(objectType, obj, (s, collection) => GlobalObjects[s] = collection);
+			ScriptManager.GlobalObjects.AddOrUpdate(objectType, obj, (s, collection) => ScriptManager.GlobalObjects[s] = collection);
 	}
+
+	public IScriptManager ScriptManager { get; }
 }
