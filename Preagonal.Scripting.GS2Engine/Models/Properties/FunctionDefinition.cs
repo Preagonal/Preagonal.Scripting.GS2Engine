@@ -4,13 +4,8 @@ using Preagonal.Scripting.GS2Engine.GS2.Script;
 
 namespace Preagonal.Scripting.GS2Engine.Models.Properties;
 
-public readonly struct FunctionDefinition<TInstance, TRet>(
-	string propertyName,
-	string description,
-	PropertyFunctionDelegate<TInstance, TRet>? callTyped = null,
-	IReadOnlyList<FunctionParameterDefinition>? parameters = null,
-	Type? returnType = null
-) : IFunctionDefinition<TInstance>
+public readonly struct FunctionDefinition<TInstance, TRet>(string propertyName, string description, PropertyFunctionDelegate<TInstance, TRet>? callTyped = null, IReadOnlyList<FunctionParameterDefinition>? parameters = null, Type? returnType = null)
+	: IFunctionDefinition<TInstance>
 {
 	public  string                                     PropertyName { get; init; } = propertyName;
 	public  string                                     Description  { get; init; } = description;
@@ -44,11 +39,10 @@ public readonly struct ContextualFunctionDefinition<TInstance, TRet>(
 {
 	public string                                     PropertyName { get; } = propertyName;
 	public string                                     Description  { get; } = description;
-	public IReadOnlyList<FunctionParameterDefinition> Parameters { get; } = parameters ?? [];
+	public IReadOnlyList<FunctionParameterDefinition> Parameters   { get; } = parameters ?? [];
 	public Type                                       ReturnType   { get; } = returnType ?? GetDefaultReturnType();
 
 	private static Type GetDefaultReturnType() => typeof(TRet) == typeof(int) ? typeof(void) : typeof(TRet);
 
-	object? IFunctionDefinition<TInstance>.Call(TInstance instance, ScriptMachine? machine, params IStackEntry[] arguments) =>
-		machine == null ? null : callTyped(instance, machine, arguments);
+	object? IFunctionDefinition<TInstance>.Call(TInstance instance, ScriptMachine? machine, params IStackEntry[] arguments) => machine == null ? null : callTyped(instance, machine, arguments);
 }

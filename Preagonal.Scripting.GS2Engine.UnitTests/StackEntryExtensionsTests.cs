@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Testing;
 using Preagonal.Scripting.GS2Engine.Enums;
 using Preagonal.Scripting.GS2Engine.Extensions;
 using Preagonal.Scripting.GS2Engine.GS2.Script;
@@ -130,7 +131,7 @@ public class StackEntryExtensionsTests
 	public void When_input_is_string_array_Then_return_StackEntry_with_type_array_and_value_type_List_string()
 	{
 		//Arrange
-		string[] val = ["test1","test2"];
+		string[] val = ["test1", "test2"];
 
 		//Act
 		var test = val.ToStackEntry();
@@ -145,7 +146,7 @@ public class StackEntryExtensionsTests
 	public void When_input_is_int_array_Then_return_StackEntry_with_type_array_and_value_type_List_int()
 	{
 		//Arrange
-		int[] val = [1,2];
+		int[] val = [1, 2];
 
 		//Act
 		var test = val.ToStackEntry();
@@ -216,6 +217,18 @@ public class StackEntryExtensionsTests
 	}
 
 	[Fact]
+	public void When_input_is_derived_script_Then_return_StackEntry_with_type_script()
+	{
+		var manager = new ScriptManager(new FakeLogger<ScriptManager>());
+		var script  = new DerivedScript(manager);
+
+		var entry = script.ToStackEntry();
+
+		Assert.Equal(StackEntryType.Script, entry.Type);
+		Assert.Same(script, entry.GetValue());
+	}
+
+	[Fact]
 	public void When_input_is_typeof_list_Then_return_StackEntry_with_type_array_and_value_type_List_string()
 	{
 		//Arrange
@@ -234,7 +247,7 @@ public class StackEntryExtensionsTests
 	public void When_input_is_outofrange_Then_return_StackEntry_with_type_array_and_value_type_List_string()
 	{
 		//Arrange
-		Thread val = new(_ =>{} );
+		Thread val = new(_ => { });
 
 		//Act
 		//Assert
@@ -246,7 +259,7 @@ public class StackEntryExtensionsTests
 	public void When_input_is_bool_Then_return_StackEntry_with_type_number_and_value_type_double()
 	{
 		//Arrange
-		const bool val = true;
+		const bool   val      = true;
 		const double expected = 1.0d;
 
 		//Act
@@ -270,4 +283,6 @@ public class StackEntryExtensionsTests
 		//Assert
 		Assert.Equal(12.5d, test);
 	}
+
+	private sealed class DerivedScript(IScriptManager scriptManager) : Script(scriptManager, ScriptType.Weapon);
 }

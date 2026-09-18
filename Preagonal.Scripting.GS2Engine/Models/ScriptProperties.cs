@@ -38,9 +38,7 @@ public class ScriptProperties<T> : HashSet<IScriptProperty>, IScriptProperties w
 
 		foreach (var prop in ParentProperties)
 		{
-			if (this.Any(existing =>
-				    existing.ScriptPropertyType == prop.ScriptPropertyType &&
-				    existing.PropertyName.Equals(prop.PropertyName, StringComparison.CurrentCultureIgnoreCase)))
+			if (this.Any(existing => existing.ScriptPropertyType == prop.ScriptPropertyType && existing.PropertyName.Equals(prop.PropertyName, StringComparison.CurrentCultureIgnoreCase)))
 			{
 				continue;
 			}
@@ -97,9 +95,7 @@ public class ScriptProperties<T> : HashSet<IScriptProperty>, IScriptProperties w
 
 	public new void Add(IScriptProperty scriptProperty)
 	{
-		RemoveWhere(existing =>
-			existing.ScriptPropertyType == scriptProperty.ScriptPropertyType &&
-			existing.PropertyName.Equals(scriptProperty.PropertyName, StringComparison.CurrentCultureIgnoreCase));
+		RemoveWhere(existing => existing.ScriptPropertyType == scriptProperty.ScriptPropertyType && existing.PropertyName.Equals(scriptProperty.PropertyName, StringComparison.CurrentCultureIgnoreCase));
 		base.Add(scriptProperty);
 	}
 }

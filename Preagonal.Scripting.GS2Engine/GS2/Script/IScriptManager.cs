@@ -8,15 +8,15 @@ public delegate ScriptVariable ScriptObjectCreator(string objectName, Script scr
 
 public interface IScriptManager
 {
-	void                                         RegisterGlobalObject(string name, ScriptVariable collection);
-	void                                         RegisterGlobalScript(Script script);
-	void                                         RegisterGlobalVariable(string name, object? variable);
-	void                                         RegisterObjectCreator(string typeName, ScriptObjectCreator creator);
-	void                                         RequestClassScript(string className);
-	void                                         SetClassScriptRequestHandler(Action<string>? handler);
-	bool                                         TryCreateObject(string typeName, string objectName, Script script, out ScriptVariable? createdObject);
-	void                                         UnregisterGlobalObject(string name, ScriptVariable collection);
-	void                                         UnregisterGlobalScript(Script script);
-	IReadOnlyCollection<Script>                  GetGlobalScripts();
-	ScriptVariable                               GlobalVariables  { get; }
+	void                        RegisterGlobalObject(string name, ScriptVariable collection);
+	void                        RegisterGlobalScript(Script script);
+	void                        RegisterGlobalVariable(string name, object? variable);
+	void                        RegisterObjectCreator(string typeName, ScriptObjectCreator creator);
+	void                        RequestClassScript(string className);
+	void                        SetClassScriptRequestHandler(Action<string>? handler);
+	bool                        TryCreateObject(string typeName, string objectName, Script script, out ScriptVariable? createdObject);
+	void                        UnregisterGlobalObject(string name, ScriptVariable collection);
+	void                        UnregisterGlobalScript(Script script);
+	IReadOnlyCollection<Script> GetGlobalScripts();
+	ScriptVariable              GlobalVariables { get; }
 }

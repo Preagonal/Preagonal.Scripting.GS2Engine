@@ -48,16 +48,16 @@ public enum Opcode
 	OP_ASSIGN             = 50, //  S(1) = S(0)
 	OP_FUNC_PARAMS_END    = 51,
 
-	OP_INC = 52, //  SET (S(0) = S(0) + 1)
-	OP_DEC = 53, //  SET (S(0) = S(0) - 1)
+	OP_INC        = 52, //  SET (S(0) = S(0) + 1)
+	OP_DEC        = 53, //  SET (S(0) = S(0) - 1)
 	OP_UNKNOWN_54 = 54,
 
-	OP_ADD = 60, //  PUSH (S(1) + S(0))
-	OP_SUB = 61, //  PUSH (S(1) - S(0))
-	OP_MUL = 62, //  PUSH (S(1) * S(0))
-	OP_DIV = 63, //  PUSH (S(1) / S(0))
-	OP_MOD = 64, //  PUSH (S(1) % S(0))
-	OP_POW = 65, //  PUSH (S(1) ^ S(0))
+	OP_ADD        = 60, //  PUSH (S(1) + S(0))
+	OP_SUB        = 61, //  PUSH (S(1) - S(0))
+	OP_MUL        = 62, //  PUSH (S(1) * S(0))
+	OP_DIV        = 63, //  PUSH (S(1) / S(0))
+	OP_MOD        = 64, //  PUSH (S(1) % S(0))
+	OP_POW        = 65, //  PUSH (S(1) ^ S(0))
 	OP_UNKNOWN_66 = 66,
 	OP_UNKNOWN_67 = 67,
 

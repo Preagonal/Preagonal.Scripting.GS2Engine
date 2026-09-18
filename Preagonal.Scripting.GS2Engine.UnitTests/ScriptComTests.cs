@@ -9,7 +9,7 @@ public class ScriptComTests
 	{
 		var command = new ScriptCom { VariableName = "Player.Account" };
 
-		var first = command.NormalizedVariableName;
+		var first  = command.NormalizedVariableName;
 		var second = command.NormalizedVariableName;
 
 		Assert.Equal("player.account", first?.ToString());

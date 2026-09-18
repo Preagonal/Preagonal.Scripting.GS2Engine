@@ -3,7 +3,13 @@ using System.Globalization;
 
 namespace Preagonal.Scripting.GS2Engine.Models.Properties;
 
-public readonly struct PropertyDefinition<TInstance, TRet>(string propertyName, string description, PropertyReadDelegate<TRet, TInstance>? readTyped = null, PropertyWriteDelegate<TInstance, TRet>? writeTyped = null, PropertyType propertyType = PropertyType.Default) : IPropertyDefinition<TInstance>
+public readonly struct PropertyDefinition<TInstance, TRet>(
+	string propertyName,
+	string description,
+	PropertyReadDelegate<TRet, TInstance>? readTyped = null,
+	PropertyWriteDelegate<TInstance, TRet>? writeTyped = null,
+	PropertyType propertyType = PropertyType.Default
+) : IPropertyDefinition<TInstance>
 {
 	public  string                                  PropertyName { get; init; } = propertyName;
 	public  string                                  Description  { get; init; } = description;
@@ -74,24 +80,22 @@ public readonly struct PropertyDefinition<TInstance, TRet>(string propertyName, 
 	private static bool ToScriptBool(object? value) =>
 		value switch
 		{
-			null => false,
-			bool b => b,
-			TString t => ToScriptBool(t.ToString()),
-			string s => double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d)
-				? Math.Abs(d) > double.Epsilon
-				: !string.IsNullOrEmpty(s),
+			null                     => false,
+			bool b                   => b,
+			TString t                => ToScriptBool(t.ToString()),
+			string s                 => double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? Math.Abs(d) > double.Epsilon : !string.IsNullOrEmpty(s),
 			IConvertible convertible => Math.Abs(Convert.ToDouble(convertible, CultureInfo.InvariantCulture)) > double.Epsilon,
-			_ => true
+			_                        => true
 		};
 
 	private static double ToScriptDouble(object? value) =>
 		value switch
 		{
-			null => 0.0d,
-			bool b => b ? 1.0d : 0.0d,
-			TString t => ToScriptDouble(t.ToString()),
-			string s => double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : 0.0d,
+			null                     => 0.0d,
+			bool b                   => b ? 1.0d : 0.0d,
+			TString t                => ToScriptDouble(t.ToString()),
+			string s                 => double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : 0.0d,
 			IConvertible convertible => Convert.ToDouble(convertible, CultureInfo.InvariantCulture),
-			_ => 0.0d
+			_                        => 0.0d
 		};
 }

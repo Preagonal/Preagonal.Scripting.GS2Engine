@@ -8,16 +8,16 @@ public class StackEntry : IStackEntry
 {
 	internal StackEntry(StackEntryType type, object? value, object? parent = null)
 	{
-		Type  = type;
-		Value = value;
+		Type   = type;
+		Value  = value;
 		Parent = parent;
 	}
 
-	private object?                                           Value          { get; set; }
-	private object?                                           Parent         { get; set; }
-	public  StackEntryType                                    Type           { get; private set; }
-	public  object?                                           GetValue()     => Value is LinkedStackEntry linkedValue ? linkedValue.GetValue() : Value;
-	public  object?                                           GetParent()    => Parent;
+	private object?        Value       { get; set; }
+	private object?        Parent      { get; set; }
+	public  StackEntryType Type        { get; private set; }
+	public  object?        GetValue()  => Value is LinkedStackEntry linkedValue ? linkedValue.GetValue() : Value;
+	public  object?        GetParent() => Parent;
 
 	public T1? GetValue<T1>()
 	{
@@ -33,16 +33,12 @@ public class StackEntry : IStackEntry
 	{
 		try
 		{
-			var targetType = typeof(T);
+			var targetType   = typeof(T);
 			var currentValue = GetValue();
 
 			if (currentValue is null)
 			{
-				value = targetType == typeof(TString)
-					? (TString)string.Empty
-					: targetType == typeof(string)
-						? string.Empty
-						: default;
+				value = targetType == typeof(TString) ? (TString)string.Empty : targetType == typeof(string) ? string.Empty : default;
 				return value is not null || default(T) is null;
 			}
 
@@ -68,15 +64,11 @@ public class StackEntry : IStackEntry
 			{
 				value = currentValue switch
 				{
-					bool b    => b ? 1.0d : 0.0d,
-					TString t => double.TryParse(t.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var d)
-						? d
-						: 0.0d,
-					string s => double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d)
-						? d
-						: 0.0d,
+					bool b                   => b ? 1.0d : 0.0d,
+					TString t                => double.TryParse(t.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : 0.0d,
+					string s                 => double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : 0.0d,
 					IConvertible convertible => Convert.ToDouble(convertible, CultureInfo.InvariantCulture),
-					_ => 0.0d,
+					_                        => 0.0d,
 				};
 				return true;
 			}
@@ -85,15 +77,11 @@ public class StackEntry : IStackEntry
 			{
 				value = currentValue switch
 				{
-					bool b    => b,
-					TString t => double.TryParse(t.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var d)
-						? d != 0.0d
-						: !string.IsNullOrEmpty(t.ToString()),
-					string s => double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d)
-						? d != 0.0d
-						: !string.IsNullOrEmpty(s),
+					bool b                   => b,
+					TString t                => double.TryParse(t.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d != 0.0d : !string.IsNullOrEmpty(t.ToString()),
+					string s                 => double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d != 0.0d : !string.IsNullOrEmpty(s),
 					IConvertible convertible => Convert.ToDouble(convertible, CultureInfo.InvariantCulture) != 0.0d,
-					_ => true,
+					_                        => true,
 				};
 				return true;
 			}
@@ -153,6 +141,5 @@ public class StackEntry : IStackEntry
 		if (SetterCallback != null && !skipCallback)
 			SetterCallback(value);
 			*/
-
 	}
 }

@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="codecov.yml" />
+    <File Path="Jenkinsfile" />
+    <File Path="NuGet.Config" />
+    <File Path="renovate.json" />
+  </Folder>
+  <Project Path="Preagonal.Scripting.GS2Engine.TestApp/Preagonal.Scripting.GS2Engine.TestApp.csproj" />
+  <Project Path="Preagonal.Scripting.GS2Engine.UnitTests/Preagonal.Scripting.GS2Engine.UnitTests.csproj" />
+  <Project Path="Preagonal.Scripting.GS2Engine/Preagonal.Scripting.GS2Engine.csproj" />
+</Solution>

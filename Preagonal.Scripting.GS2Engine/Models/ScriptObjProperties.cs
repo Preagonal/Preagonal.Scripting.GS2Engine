@@ -9,28 +9,20 @@ public class ScriptObjProperties : ScriptProperties<Script>
 	{
 		_ = ScriptVariable.PropertiesInstance;
 
-		AddProperties(
-			this,
-			new()
-			{
-				{ "hp", "The object's hit-point value.", _ => 0.00d },
-			}
-		);
+		AddProperties(this, new() { { "hp", "The object's hit-point value.", _ => 0.00d }, });
 
 		AddFunctions(
 			this,
 			new()
 			{
 				{
-					"settimer",
-					"Schedules the object's onTimeout event after the specified delay.",
-					(control, o2) =>
+					"settimer", "Schedules the object's onTimeout event after the specified delay.", (control, machine, o2) =>
 					{
 						var value = o2.FirstOrDefault()?.GetValue();
 						switch (value)
 						{
 							case double timeout:
-								control.SetTimer(timeout);
+								control.SetTimer(machine.CurrentReceiver, timeout);
 								break;
 						}
 

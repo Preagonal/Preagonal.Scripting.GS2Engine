@@ -11,23 +11,23 @@ public class TString
 {
 	public static readonly Models.TStringProperties PropertiesInstance = [];
 
-	public  byte[] buffer = [];
-	private int    readc;
-	private int    writePos;
+	public  byte[]  buffer = [];
+	private int     readc;
+	private int     writePos;
 	private string? stringValue;
 
 	private TString(string str)
 	{
-		buffer = Encoding.ASCII.GetBytes(str);
-		Length = buffer.Length;
-		writePos = Length;
+		buffer      = Encoding.ASCII.GetBytes(str);
+		Length      = buffer.Length;
+		writePos    = Length;
 		stringValue = IsAscii(str) ? str : Encoding.ASCII.GetString(buffer);
 	}
 
 	private TString(byte[] str)
 	{
-		buffer = str;
-		Length = buffer.Length;
+		buffer   = str;
+		Length   = buffer.Length;
 		writePos = Length;
 	}
 
@@ -72,9 +72,10 @@ public class TString
 		Length++;
 	}
 
-	public static implicit operator string(TString d)  => d.ToString();
+	public static implicit operator string(TString d) => d.ToString();
 	public static implicit operator TString(string b) => new(b);
-	public static implicit operator TString(byte[] b)  => new(b);
+	public static implicit operator TString(byte[] b) => new(b);
+
 	public static bool operator ==(TString? obj1, TString? obj2)
 	{
 		if (ReferenceEquals(obj1, obj2))
@@ -85,7 +86,9 @@ public class TString
 			return false;
 		return obj1.Equals(obj2);
 	}
+
 	public static bool operator !=(TString? obj1, TString? obj2) => !(obj1 == obj2);
+
 	public static TString operator +(TString a, TString b)
 	{
 		a.AddBuffer(b.buffer, 0, b.length());
@@ -171,7 +174,7 @@ public class TString
 	{
 		byte[] val = [];
 		read(ref val, 2);
-		return (short)(((val[0]-32) << 8) + (val[1]-32));
+		return (short)(((val[0] - 32) << 8) + (val[1] - 32));
 	}
 
 	public void writeByte(byte pData, bool nullTerminate = false)
@@ -208,25 +211,25 @@ public class TString
 
 	public void removeStart(int i)
 	{
-		buffer = buffer.Skip(i).ToArray();
-		Length = buffer.Length;
-		writePos = Length;
+		buffer      = buffer.Skip(i).ToArray();
+		Length      = buffer.Length;
+		writePos    = Length;
 		stringValue = null;
 	}
 
 	public override string ToString() => stringValue ??= Encoding.ASCII.GetString(buffer, 0, Length);
 
-	private         bool Equals(TString? compare) => ToString() == compare?.ToString();
+	private bool Equals(TString? compare) => ToString() == compare?.ToString();
+
 	public override bool Equals(object? obj)
 	{
 		if (obj == null || GetType() != obj.GetType()) return false;
 		return Equals((TString?)obj);
 	}
 
-	public override int  GetHashCode()            => HashCode.Combine(buffer.GetHashCode(), length());
+	public override int GetHashCode() => HashCode.Combine(buffer.GetHashCode(), length());
 
-	public bool StartsWith(TString toString, StringComparison culture) =>
-		ToString().StartsWith(toString.ToString(), culture);
+	public bool StartsWith(TString toString, StringComparison culture) => ToString().StartsWith(toString.ToString(), culture);
 
 	public TString ToLower() => ToString().ToLowerInvariant();
 

@@ -11,22 +11,21 @@ namespace Preagonal.Scripting.GS2Engine.Extensions;
 
 public static class StackEntryExtensions
 {
-	public static StackEntry ToStackEntry(this object? stackObject, bool isVariable = false, object? parent = null) =>
-		new(isVariable ? StackEntryType.Variable : GetStackEntryType(stackObject), FixStackValue(stackObject), parent);
+	public static StackEntry ToStackEntry(this object? stackObject, bool isVariable = false, object? parent = null) => new(isVariable ? StackEntryType.Variable : GetStackEntryType(stackObject), FixStackValue(stackObject), parent);
 
 	private static object? FixStackValue(object? stackObject)
 	{
 		return stackObject switch
 		{
-			null => 0.0d,
-			string => (TString)(stackObject?.ToString() ?? string.Empty),
-			TString => stackObject,
-			int i => (double)i,
-			double d => d,
-			float f => (double)f,
+			null      => 0.0d,
+			string    => (TString)(stackObject?.ToString() ?? string.Empty),
+			TString   => stackObject,
+			int i     => (double)i,
+			double d  => d,
+			float f   => (double)f,
 			decimal o => (double)o,
-			bool b => b ? 1.0d : 0.0d,
-			_ => stackObject,
+			bool b    => b ? 1.0d : 0.0d,
+			_         => stackObject,
 		};
 	}
 
@@ -56,56 +55,50 @@ public static class StackEntryExtensions
 			case TypeCode.DateTime:
 				return StackEntryType.String;
 			default:
-				{
-					if (stackType == typeof(TString))
-						return StackEntryType.String;
+			{
+				if (stackType == typeof(TString))
+					return StackEntryType.String;
 
-					if (stackType == typeof(Version))
-						return StackEntryType.Array;
+				if (stackType == typeof(Version))
+					return StackEntryType.Array;
 
-					if (stackType == typeof(Script.Command))
-						return StackEntryType.Function;
+				if (stackType == typeof(Script.Command))
+					return StackEntryType.Function;
 
-					if (stackType is { IsGenericType: true } && stackType.GetGenericTypeDefinition() == typeof(ScriptProperty<>))
-						return StackEntryType.ScriptProperty;
+				if (stackType is { IsGenericType: true } && stackType.GetGenericTypeDefinition() == typeof(ScriptProperty<>))
+					return StackEntryType.ScriptProperty;
 
 
-					if (stackType == typeof(Script))
-						return StackEntryType.Script;
+				if (stackType != null && typeof(Script).IsAssignableFrom(stackType))
+					return StackEntryType.Script;
 
-					if (stackType != null && stackType.GetInterfaces()
-													  .Any(x => x.Name.Equals("IGuiControl", StringComparison.CurrentCultureIgnoreCase)))
-						return StackEntryType.Array;
+				if (stackType != null && stackType.GetInterfaces().Any(x => x.Name.Equals("IGuiControl", StringComparison.CurrentCultureIgnoreCase)))
+					return StackEntryType.Array;
 
-					if (stackType != null && (stackType == typeof(VariableCollection) || stackType.IsSubclassOf(typeof(VariableCollection))))
-						return StackEntryType.Array;
+				if (stackType != null && (stackType == typeof(VariableCollection) || stackType.IsSubclassOf(typeof(VariableCollection))))
+					return StackEntryType.Array;
 
-					if (stackObject is float)
-						return StackEntryType.Number;
+				if (stackObject is float)
+					return StackEntryType.Number;
 
-					if (stackType is { IsGenericType: true } &&
-						stackType.GetGenericTypeDefinition().IsAssignableFrom(typeof(List<>)))
-						return StackEntryType.Array;
+				if (stackType is { IsGenericType: true } && stackType.GetGenericTypeDefinition().IsAssignableFrom(typeof(List<>)))
+					return StackEntryType.Array;
 
-					if (stackObject is IEnumerable and not string and not TString)
-						return StackEntryType.Array;
+				if (stackObject is IEnumerable and not string and not TString)
+					return StackEntryType.Array;
 
-					throw new ArgumentOutOfRangeException(nameof(stackType), $"StackType: {stackType}");
-				}
+				throw new ArgumentOutOfRangeException(nameof(stackType), $"StackType: {stackType}");
+			}
 		}
 	}
 
-	public static IStackEntry ToStackEntry(this IEnumerable<string> stackObject) =>
-		new StackEntry(StackEntryType.Array, stackObject.ToList());
+	public static IStackEntry ToStackEntry(this IEnumerable<string> stackObject) => new StackEntry(StackEntryType.Array, stackObject.ToList());
 
-	public static IStackEntry ToStackEntry(this IEnumerable<int> stackObject) =>
-		new StackEntry(StackEntryType.Array, stackObject.ToList());
+	public static IStackEntry ToStackEntry(this IEnumerable<int> stackObject) => new StackEntry(StackEntryType.Array, stackObject.ToList());
 
-	public static IStackEntry ToStackEntry(this IEnumerable<object?> stackObject) =>
-		new StackEntry(StackEntryType.Array, stackObject.ToList());
+	public static IStackEntry ToStackEntry(this IEnumerable<object?> stackObject) => new StackEntry(StackEntryType.Array, stackObject.ToList());
 
-	public static IStackEntry ToStackEntry(this IEnumerable<double> stackObject) =>
-		new StackEntry(StackEntryType.Array, stackObject.ToList());
+	public static IStackEntry ToStackEntry(this IEnumerable<double> stackObject) => new StackEntry(StackEntryType.Array, stackObject.ToList());
 
 	public static double ToScriptDouble(this object? value)
 	{
@@ -115,12 +108,12 @@ public static class StackEntryExtensions
 		{
 			return value switch
 			{
-				null => 0.0d,
-				bool boolean => boolean ? 1.0d : 0.0d,
+				null                                                                                                                       => 0.0d,
+				bool boolean                                                                                                               => boolean ? 1.0d : 0.0d,
 				TString tString when double.TryParse(tString.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) => parsed,
-				string text when double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) => parsed,
-				IConvertible convertible => Convert.ToDouble(convertible, CultureInfo.InvariantCulture),
-				_ => 0.0d,
+				string text when double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)                   => parsed,
+				IConvertible convertible                                                                                                   => Convert.ToDouble(convertible, CultureInfo.InvariantCulture),
+				_                                                                                                                          => 0.0d,
 			};
 		}
 		catch

@@ -12,7 +12,7 @@ public interface IScriptProperty
 	public string                                     Description        { get; }
 	public Type                                       MainType           { get; }
 	public Type                                       ReturnType         { get; }
-	public IReadOnlyList<FunctionParameterDefinition> Parameters { get; }
+	public IReadOnlyList<FunctionParameterDefinition> Parameters         { get; }
 	public IScriptProperties?                         Properties         { get; }
 	public bool                                       HasWriteMethod     { get; }
 	public bool                                       HasReadMethod      { get; }

@@ -10,9 +10,7 @@ public static class StringExtensions
 		if (string.IsNullOrEmpty(value))
 			return [];
 
-		return string.IsNullOrEmpty(separators)
-			? value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-			: value.Split(separators.ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+		return string.IsNullOrEmpty(separators) ? value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries) : value.Split(separators.ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
 	}
 
 	public static IEnumerable<double> PositionsOf(this string value, string needle)

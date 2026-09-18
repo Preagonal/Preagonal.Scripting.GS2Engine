@@ -7,15 +7,16 @@ public class ScriptCom
 	private TString? _normalizedVariableName;
 	private TString? _variableName;
 
-	public Opcode   OpCode       { get; set; }
-	public uint     LoopCount    { get; set; }
-	public double   Value        { get; set; }
+	public Opcode OpCode    { get; set; }
+	public uint   LoopCount { get; set; }
+	public double Value     { get; set; }
+
 	public TString? VariableName
 	{
 		get => _variableName;
 		set
 		{
-			_variableName = value;
+			_variableName           = value;
 			_normalizedVariableName = null;
 		}
 	}

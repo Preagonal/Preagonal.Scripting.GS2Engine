@@ -12,136 +12,148 @@ namespace Preagonal.Scripting.GS2Engine.Models;
 public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 {
 	public new static readonly GuiControlProperties PropertiesInstance = [];
-	public override IScriptProperties Properties => PropertiesInstance;
+	public override            IScriptProperties    Properties => PropertiesInstance;
 
-	protected readonly string  Id;
-	protected readonly Script? Script;
-	private readonly List<GuiAnimation> _animations = [];
-	private readonly HashSet<int> _mouseLocks = [];
-		private int _areaClickPriority;
-		private int _height;
-		private bool _maximized;
-		private string _minExtent = "";
-		private IGuiControl? _parent;
-		private object? _profile;
-		private GuiControlProfile? _ownProfile;
-		private string _text = string.Empty;
-		private bool _visible;
-		private int _clientHeight;
-		private int _clientWidth;
-		private int _width;
-		private int _x;
-		private int _y;
-		[ThreadStatic]
-		private static HashSet<GuiControl>? _drawStack;
-	protected event Action<string>? TextChanged;
+	protected readonly            string               Id;
+	protected readonly            Script?              Script;
+	private readonly              List<GuiAnimation>   _animations = [];
+	private readonly              HashSet<int>         _mouseLocks = [];
+	private                       int                  _areaClickPriority;
+	private                       int                  _height;
+	private                       bool                 _maximized;
+	private                       string               _minExtent = "";
+	private                       IGuiControl?         _parent;
+	private                       object?              _profile;
+	private                       GuiControlProfile?   _ownProfile;
+	private                       string               _text = string.Empty;
+	private                       bool                 _visible;
+	private                       int                  _clientHeight;
+	private                       int                  _clientWidth;
+	private                       int                  _width;
+	private                       int                  _x;
+	private                       int                  _y;
+	[ThreadStatic] private static HashSet<GuiControl>? _drawStack;
+	protected event Action<string>?                    TextChanged;
 
 	public GuiControl(string id, Script? script) : base(id)
 	{
-		Id           = id;
-		Script       = script;
+		Id          = id;
+		Script      = script;
+		OwnerScript = script;
 		Script?.ScriptManager.RegisterGlobalObject(id.ToLowerInvariant(), this);
-		Active       = true;
-		CanMove      = false;
-		CanResize    = false;
-		ClipMove     = true;
-		ClipChildren = true;
-		HorizSizing  = "right";
-		VertSizing   = "bottom";
-		MinExtent    = "8 8";
-		Hint         = "";
-		Cursor       = "";
-		Color        = "1 1 1 1";
-		Style        = "";
+		Active         = true;
+		CanMove        = false;
+		CanResize      = false;
+		ClipMove       = true;
+		ClipChildren   = true;
+		HorizSizing    = "right";
+		VertSizing     = "bottom";
+		MinExtent      = "8 8";
+		Hint           = "";
+		Cursor         = "";
+		Color          = "1 1 1 1";
+		Style          = "";
 		RotationCenter = "";
-		_x           = 0;
-		_y           = 0;
-		_width       = 64;
-		_height      = 64;
-		_clientWidth = _width;
-		_clientHeight = _height;
-		_visible     = true;
-		Alpha        = 1;
-		Red          = 1;
-		Green        = 1;
-		Blue         = 1;
+		_x             = 0;
+		_y             = 0;
+		_width         = 64;
+		_height        = 64;
+		_clientWidth   = _width;
+		_clientHeight  = _height;
+		_visible       = true;
+		Alpha          = 1;
+		Red            = 1;
+		Green          = 1;
+		Blue           = 1;
 	}
 
-	public bool         AcceptDropFiles       { get; set; }
-	public bool         Active        { get; set; }
-	public double       Alpha                 { get; set; }
-	public int          AreaClickPriority
+	public bool   AcceptDropFiles { get; set; }
+	public bool   Active          { get; set; }
+	public double Alpha           { get; set; }
+
+	public int AreaClickPriority
 	{
 		get => _areaClickPriority;
 		set => _areaClickPriority = Math.Clamp(value, 0, 2);
 	}
-	public bool         Awake         { get; set; }
-	public bool         BitmapCache           { get; set; }
-	public double       Blue                  { get; set; }
-	public string       Bounds
+
+	public bool   Awake       { get; set; }
+	public bool   BitmapCache { get; set; }
+	public double Blue        { get; set; }
+
+	public string Bounds
 	{
 		get => $"{X} {Y} {Width} {Height}";
 		set => SetBounds(value);
 	}
-	public bool         CanMove       { get; set; }
-	public bool         CanClose      { get; set; }
-	public bool         CanMaximize   { get; set; }
-	public bool         CanMinimize   { get; set; }
-	public bool         CanResize     { get; set; }
-	public int          ClientHeight
+
+	public bool CanMove     { get; set; }
+	public bool CanClose    { get; set; }
+	public bool CanMaximize { get; set; }
+	public bool CanMinimize { get; set; }
+	public bool CanResize   { get; set; }
+
+	public int ClientHeight
 	{
 		get => _clientHeight;
 		set => Resize(X, Y, Width, Height + value - _clientHeight);
 	}
-	public int          ClientWidth
+
+	public int ClientWidth
 	{
 		get => _clientWidth;
 		set => Resize(X, Y, Width + value - _clientWidth, Height);
 	}
-	public bool         ClipChildren  { get; set; }
-	public bool         ClipMove      { get; set; }
-	public bool         ClipToBounds  { get; set; } = true;
-	public string       Color
+
+	public bool ClipChildren { get; set; }
+	public bool ClipMove     { get; set; }
+	public bool ClipToBounds { get; set; } = true;
+
+	public string Color
 	{
 		get => $"{Red.ToString(CultureInfo.InvariantCulture)} {Green.ToString(CultureInfo.InvariantCulture)} {Blue.ToString(CultureInfo.InvariantCulture)} {Alpha.ToString(CultureInfo.InvariantCulture)}";
 		set => SetColor(value);
 	}
-	public string       Cursor        { get; set; }
-	public bool         Editing       { get; set; }
-	public bool         FastChildRender       { get; set; }
-	public IGuiControl? FirstResponder        { get; set; }
-		public IGuiControl? Parent
+
+	public string       Cursor          { get; set; }
+	public bool         Editing         { get; set; }
+	public bool         FastChildRender { get; set; }
+	public IGuiControl? FirstResponder  { get; set; }
+
+	public IGuiControl? Parent
+	{
+		get => _parent;
+		set
 		{
-			get => _parent;
-			set
+			if (CanUseParent(value))
 			{
-				if (CanUseParent(value))
-				{
-					var oldParent = _parent;
-					_parent = value;
-					if (!ReferenceEquals(oldParent, _parent))
-						OnParentChanged(oldParent, _parent);
-					if (_maximized)
-						MaximizeToParent();
-				}
+				var oldParent = _parent;
+				_parent = value;
+				if (!ReferenceEquals(oldParent, _parent))
+					OnParentChanged(oldParent, _parent);
+				if (_maximized)
+					MaximizeToParent();
 			}
 		}
-	public bool         Flickering    { get; set; }
-	public double       FlickerBaseTime       { get; set; }
-	public double       FlickerTime   { get; set; }
-	public double       Green                 { get; set; }
-	public string       Hint          { get; set; }
-	public double       HintTime              { get; set; }
-	public string       HorizSizing   { get; set; }
-	public bool         IsDragging            { get; private set; }
-	public bool         IsExternal            { get; set; }
-	public bool         IsInAnimation         { get; set; }
-	public bool         IsInInOutAnimation    { get; set; }
-	public IReadOnlyCollection<GuiAnimation> Animations => _animations;
-	public string       VertSizing    { get; set; }
-	public int          Layer         { get; set; }
-	public bool         LockMouseDown         { get; set; }
-	public bool         Maximized
+	}
+
+	public bool                              Flickering         { get; set; }
+	public double                            FlickerBaseTime    { get; set; }
+	public double                            FlickerTime        { get; set; }
+	public double                            Green              { get; set; }
+	public string                            Hint               { get; set; }
+	public double                            HintTime           { get; set; }
+	public string                            HorizSizing        { get; set; }
+	public bool                              IsDragging         { get; private set; }
+	public bool                              IsExternal         { get; set; }
+	public bool                              IsInAnimation      { get; set; }
+	public bool                              IsInInOutAnimation { get; set; }
+	public IReadOnlyCollection<GuiAnimation> Animations         => _animations;
+	public string                            VertSizing         { get; set; }
+	public int                               Layer              { get; set; }
+	public bool                              LockMouseDown      { get; set; }
+
+	public bool Maximized
 	{
 		get => _maximized;
 		set
@@ -151,20 +163,24 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 				MaximizeToParent();
 		}
 	}
-	public string       MinExtent
+
+	public string MinExtent
 	{
 		get => _minExtent;
 		set => _minExtent = value;
 	}
-	public string       MinSize
+
+	public string MinSize
 	{
 		get => MinExtent;
 		set => MinExtent = value;
 	}
-	public int          Mode                  { get; set; }
-	public bool         Modal                 { get; set; }
-	public bool         NeedsRepaint          { get; private set; }
-	public object?      Profile
+
+	public int  Mode         { get; set; }
+	public bool Modal        { get; set; }
+	public bool NeedsRepaint { get; private set; }
+
+	public object? Profile
 	{
 		get => _ownProfile ?? _profile;
 		set
@@ -174,18 +190,20 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 				_ownProfile.CopyFrom(assignedProfile);
 		}
 	}
+
 	public GuiControlProfile? GetResolvedProfile() => _ownProfile ?? ResolveProfile(_profile);
-	public double       Red                   { get; set; }
-	public bool         ResizeWidth   { get; set; }
-	public bool         ResizeHeight  { get; set; }
-	public double       Rotation              { get; set; }
-	public string       RotationCenter        { get; set; }
-	public int          ScrollLineX   { get; set; }
-	public int          ScrollLineY   { get; set; }
-	public bool         ShowHint      { get; set; }
-	public bool         AlwaysOnTop           { get; set; }
-	public string       Style                 { get; set; }
-	public string       Text
+	public double             Red                  { get; set; }
+	public bool               ResizeWidth          { get; set; }
+	public bool               ResizeHeight         { get; set; }
+	public double             Rotation             { get; set; }
+	public string             RotationCenter       { get; set; }
+	public int                ScrollLineX          { get; set; }
+	public int                ScrollLineY          { get; set; }
+	public bool               ShowHint             { get; set; }
+	public bool               AlwaysOnTop          { get; set; }
+	public string             Style                { get; set; }
+
+	public string Text
 	{
 		get => _text;
 		set
@@ -196,7 +214,8 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 			TextChanged?.Invoke(value);
 		}
 	}
-	public bool         UseOwnProfile
+
+	public bool UseOwnProfile
 	{
 		get => _ownProfile != null;
 		set
@@ -211,40 +230,47 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 			}
 		}
 	}
-	public bool         Visible
+
+	public bool Visible
 	{
 		get => _visible;
-		set
-		{
-			if (_visible == value) return;
+		set => SetVisible(value, true);
+	}
 
-			var wasActuallyVisible = IsActuallyVisible();
-			_visible = value;
-			StopInOutAnimations();
-			var isActuallyVisible = IsActuallyVisible();
-			if (wasActuallyVisible != isActuallyVisible)
-			{
-				ClearFirstResponders();
-				NotifyVisible(isActuallyVisible);
-			}
+	internal void SetVisible(bool value, bool stopAnimations)
+	{
+		if (_visible == value) return;
+
+		var wasActuallyVisible = IsActuallyVisible();
+		_visible = value;
+		if (stopAnimations) StopInOutAnimations();
+		var isActuallyVisible = IsActuallyVisible();
+		if (wasActuallyVisible != isActuallyVisible)
+		{
+			ClearFirstResponders();
+			NotifyVisible(isActuallyVisible);
 		}
 	}
-	public int          Width
+
+	public int Width
 	{
 		get => _width;
 		set => Resize(X, Y, value, Height);
 	}
-	public int          Height
+
+	public int Height
 	{
 		get => _height;
 		set => Resize(X, Y, Width, value);
 	}
-	public int          X
+
+	public int X
 	{
 		get => _x;
 		set => Resize(value, Y, Width, Height);
 	}
-	public int          Y
+
+	public int Y
 	{
 		get => _y;
 		set => Resize(X, value, Width, Height);
@@ -300,43 +326,43 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		Dispose();
 	}
 
-		public void AddControl(IGuiControl? obj)
+	public void AddControl(IGuiControl? obj)
+	{
+		if (obj == null) return;
+		if (obj is GuiControl child)
 		{
-			if (obj == null) return;
-			if (obj is GuiControl child)
-			{
-				if (!child.CanUseParent(this))
-					return;
+			if (!child.CanUseParent(this))
+				return;
 
-				if (child.Parent is GuiControl oldParent && !ReferenceEquals(oldParent, this))
-					oldParent.RemoveControl(child);
-			}
-
-			obj.Parent = this;
-			if (!ReferenceEquals(obj.Parent, this)) return;
-
-			lock (Controls)
-			{
-				if (!Controls.Contains(obj))
-					Controls.Add(obj);
-			}
-
-			if (Awake && obj is GuiControl guiControl)
-				guiControl.Awaken();
+			if (child.Parent is GuiControl oldParent && !ReferenceEquals(oldParent, this))
+				oldParent.RemoveControl(child);
 		}
 
-		public void RemoveControl(IGuiControl? obj)
+		obj.Parent = this;
+		if (!ReferenceEquals(obj.Parent, this)) return;
+
+		lock (Controls)
 		{
-			if (obj == null) return;
-
-			lock (Controls)
-			{
-				Controls.Remove(obj);
-			}
-
-			if (ReferenceEquals(obj.Parent, this))
-				obj.Parent = null;
+			if (!Controls.Contains(obj))
+				Controls.Add(obj);
 		}
+
+		if (Awake && obj is GuiControl guiControl)
+			guiControl.Awaken();
+	}
+
+	public void RemoveControl(IGuiControl? obj)
+	{
+		if (obj == null) return;
+
+		lock (Controls)
+		{
+			Controls.Remove(obj);
+		}
+
+		if (ReferenceEquals(obj.Parent, this))
+			obj.Parent = null;
+	}
 
 	public void Awaken()
 	{
@@ -384,9 +410,9 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		if (_animations.Count > 999) return null;
 
 		var animation = new GuiAnimation(this);
+		Show();
 		_animations.Add(animation);
 		IsInAnimation = true;
-		Show();
 		Repaint();
 		return animation;
 	}
@@ -396,38 +422,31 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		var parts = ParseParts(position, 2);
 		if (parts.Length < 2) return null;
 
-		return Controls.OfType<GuiControl>()
-		               .LastOrDefault(control =>
-			                              control.Visible &&
-			                              control.Active &&
-			                              parts[0] >= control.X &&
-			                              parts[1] >= control.Y &&
-			                              parts[0] < control.X + control.Width &&
-			                              parts[1] < control.Y + control.Height);
+		return Controls.OfType<GuiControl>().LastOrDefault(control => control.Visible && control.Active && parts[0] >= control.X && parts[1] >= control.Y && parts[0] < control.X + control.Width && parts[1] < control.Y + control.Height);
 	}
 
 	public IGuiControl? GetParent() => Parent;
 
 	public virtual string GlobalToLocalCoord(string position)
 	{
-		var (x, y) = ParsePoint(position);
+		var (x, y)             = ParsePoint(position);
 		var (globalX, globalY) = GetGlobalPosition();
 		return FormatPoint(x - globalX, y - globalY);
 	}
 
 	public void Hide() => Visible = false;
 
-		public bool IsActuallyVisible() => Visible && Active && (Parent is not GuiControl parent || parent.IsActuallyVisible());
+	public bool IsActuallyVisible() => Visible && Active && (Parent is not GuiControl parent || parent.IsActuallyVisible());
 
-		public bool IsOwnedBy(Script script) => ReferenceEquals(Script, script);
+	public bool IsOwnedBy(Script script) => ReferenceEquals(Script, script);
 
-		public bool IsFirstResponder() => ReferenceEquals(Parent is GuiControl parent ? parent.FirstResponder : FirstResponder, this);
+	public bool IsFirstResponder() => ReferenceEquals(Parent is GuiControl parent ? parent.FirstResponder : FirstResponder, this);
 
 	public bool IsMouseLocked(int id) => _mouseLocks.Contains(id);
 
 	public virtual string LocalToGlobalCoord(string position)
 	{
-		var (x, y) = ParsePoint(position);
+		var (x, y)             = ParsePoint(position);
 		var (globalX, globalY) = GetGlobalPosition();
 		return FormatPoint(x + globalX, y + globalY);
 	}
@@ -469,21 +488,21 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 
 	public virtual void Resize(int x, int y, int width, int height)
 	{
-		var oldX = _x;
-		var oldY = _y;
-		var oldWidth = _width;
-		var oldHeight = _height;
-		var oldClientWidth = _clientWidth;
+		var oldX            = _x;
+		var oldY            = _y;
+		var oldWidth        = _width;
+		var oldHeight       = _height;
+		var oldClientWidth  = _clientWidth;
 		var oldClientHeight = _clientHeight;
 		var (minWidth, minHeight) = GetMinimumExtent();
 
-		_x      = x;
-		_y      = y;
-		_width  = Math.Max(width, minWidth);
-		_height = Math.Max(height, minHeight);
+		_x                              = x;
+		_y                              = y;
+		_width                          = Math.Max(width, minWidth);
+		_height                         = Math.Max(height, minHeight);
 		var (clientWidth, clientHeight) = GetClientSizeForBounds(_width, _height);
-		_clientWidth = Math.Max(clientWidth, 0);
-		_clientHeight = Math.Max(clientHeight, 0);
+		_clientWidth                    = Math.Max(clientWidth, 0);
+		_clientHeight                   = Math.Max(clientHeight, 0);
 
 		if (oldClientWidth != _clientWidth || oldClientHeight != _clientHeight)
 			ResizeChildren(oldClientWidth, oldClientHeight, _clientWidth, _clientHeight);
@@ -537,16 +556,15 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		profileValue switch
 		{
 			GuiControlProfile resolvedProfile => resolvedProfile,
-			IStackEntry { } entry => ResolveProfile(entry.GetValue()),
-			TString profileName => ResolveProfile(profileName.ToString()),
-			string profileName => ResolveProfile(profileName),
-			_ => null
+			IStackEntry { } entry             => ResolveProfile(entry.GetValue()),
+			TString profileName               => ResolveProfile(profileName.ToString()),
+			string profileName                => ResolveProfile(profileName),
+			_                                 => null
 		};
 
 	private GuiControlProfile? ResolveProfile(string profileName)
 	{
-		if (string.IsNullOrWhiteSpace(profileName) ||
-		    Script?.ScriptManager.GlobalVariables.TryGetVariable(profileName.ToLowerInvariant(), out var entry) != true)
+		if (string.IsNullOrWhiteSpace(profileName) || Script?.ScriptManager.GlobalVariables.TryGetVariable(profileName.ToLowerInvariant(), out var entry) != true)
 		{
 			return null;
 		}
@@ -573,10 +591,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		{
 			if (Controls.Count < 2) return;
 
-			var controls = Controls
-				.OrderBy(control => control is GuiControl guiControl ? guiControl.Y : 0)
-				.ThenBy(control => control is GuiControl guiControl ? guiControl.X : 0)
-				.ToArray();
+			var controls = Controls.OrderBy(control => control is GuiControl guiControl ? guiControl.Y : 0).ThenBy(control => control is GuiControl guiControl ? guiControl.X : 0).ToArray();
 
 			Controls.Clear();
 			foreach (var control in controls)
@@ -591,12 +606,39 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 
 	public void StopAnimations()
 	{
+		foreach (var animation in _animations) animation.RestoreAlpha();
 		_animations.Clear();
-		IsInAnimation = false;
+		IsInAnimation      = false;
+		IsInInOutAnimation = false;
+	}
+
+	public void AdvanceAnimations(double elapsedSeconds)
+	{
+		string? finishedTransition = null;
+		foreach (var animation in _animations.ToArray())
+		{
+			if (animation.Advance(elapsedSeconds)) continue;
+			_animations.Remove(animation);
+			animation.Complete();
+			finishedTransition = animation.Transition;
+		}
+
+		IsInAnimation      = _animations.Count > 0;
+		IsInInOutAnimation = _animations.Any(animation => !string.IsNullOrEmpty(animation.Transition));
+		if (finishedTransition != null && !IsInAnimation)
+			InvokeEvent("onAnimationFinished", finishedTransition);
+
+		GuiControl[] children;
+		lock (Controls)
+			children = Controls.OfType<GuiControl>().ToArray();
+		foreach (var child in children)
+			child.AdvanceAnimations(elapsedSeconds);
 	}
 
 	public void StopInOutAnimations()
 	{
+		foreach (var animation in _animations.Where(animation => !string.IsNullOrEmpty(animation.Transition)))
+			animation.RestoreAlpha();
 		_animations.RemoveAll(animation => !string.IsNullOrEmpty(animation.Transition));
 		IsInInOutAnimation = false;
 		if (_animations.Count == 0)
@@ -669,47 +711,46 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 
 	internal void RemoveEventCatchersFrom(Script sourceScript) => Script?.RemoveEventCatchersFrom(sourceScript);
 
-
 	public virtual void Draw()
 	{
 		NeedsRepaint = false;
 		DrawChildControls();
 	}
 
-		protected void DrawChildControls()
+	protected void DrawChildControls()
+	{
+		var drawStack = _drawStack ??= new(ReferenceEqualityComparer.Instance);
+		if (!drawStack.Add(this)) return;
+		try
 		{
-			var drawStack = _drawStack ??= new(ReferenceEqualityComparer.Instance);
-			if (!drawStack.Add(this)) return;
-			try
+			IGuiControl?[] controls;
+			lock (Controls)
 			{
-				IGuiControl?[] controls;
-				lock (Controls)
-				{
-					controls = Controls.ToArray();
-				}
-
-				foreach (var control in controls)
-				{
-					if (control == null) continue;
-					if (control is GuiControl guiControl)
-					{
-						if (drawStack.Contains(guiControl)) continue;
-						if (guiControl.Active && guiControl.Visible)
-							guiControl.Draw();
-					}
-					else
-					{
-						control.Draw();
-					}
-				}
+				controls = Controls.ToArray();
 			}
-			finally
+
+			foreach (var control in controls)
 			{
-				drawStack.Remove(this);
-				if (drawStack.Count == 0)
-					_drawStack = null;
+				if (control == null) continue;
+				if (control is GuiControl guiControl)
+				{
+					if (drawStack.Contains(guiControl)) continue;
+					if (guiControl.Visible)
+						guiControl.Draw();
+				}
+				else
+				{
+					control.Draw();
+				}
 			}
 		}
+		finally
+		{
+			drawStack.Remove(this);
+			if (drawStack.Count == 0)
+				_drawStack = null;
+		}
+	}
 
 	protected void ResizeChildren(int oldWidth, int oldHeight, int newWidth, int newHeight)
 	{
@@ -742,13 +783,13 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 
 	protected void SetClientAreaSize(int width, int height)
 	{
-		width = Math.Max(width, 0);
+		width  = Math.Max(width, 0);
 		height = Math.Max(height, 0);
 		if (_clientWidth == width && _clientHeight == height) return;
 
-		var oldClientWidth = _clientWidth;
+		var oldClientWidth  = _clientWidth;
 		var oldClientHeight = _clientHeight;
-		_clientWidth = width;
+		_clientWidth  = width;
 		_clientHeight = height;
 		ResizeChildren(oldClientWidth, oldClientHeight, _clientWidth, _clientHeight);
 	}
@@ -781,15 +822,33 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 			return;
 		}
 
-		var newX = X;
-		var newY = Y;
-		var newWidth = Width;
+		var newX      = X;
+		var newY      = Y;
+		var newWidth  = Width;
 		var newHeight = Height;
-		var deltaX = newParentWidth - oldParentWidth;
-		var deltaY = newParentHeight - oldParentHeight;
+		var deltaX    = newParentWidth - oldParentWidth;
+		var deltaY    = newParentHeight - oldParentHeight;
 
-		ApplySizing(HorizSizing, oldParentWidth, newParentWidth, deltaX, X, Width, ref newX, ref newWidth);
-		ApplySizing(VertSizing, oldParentHeight, newParentHeight, deltaY, Y, Height, ref newY, ref newHeight);
+		ApplySizing(
+			HorizSizing,
+			oldParentWidth,
+			newParentWidth,
+			deltaX,
+			X,
+			Width,
+			ref newX,
+			ref newWidth
+		);
+		ApplySizing(
+			VertSizing,
+			oldParentHeight,
+			newParentHeight,
+			deltaY,
+			Y,
+			Height,
+			ref newY,
+			ref newHeight
+		);
 
 		if (newX != X || newY != Y || newWidth != Width || newHeight != Height)
 			Resize(newX, newY, newWidth, newHeight);
@@ -803,7 +862,8 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		int position,
 		int extent,
 		ref int newPosition,
-		ref int newExtent)
+		ref int newExtent
+	)
 	{
 		switch (sizing)
 		{
@@ -820,14 +880,14 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 				break;
 			case "relative" when oldParentExtent != 0:
 				newPosition = newParentExtent * position / oldParentExtent;
-				newExtent = newParentExtent * (position + extent) / oldParentExtent - newPosition;
+				newExtent   = newParentExtent * (position + extent) / oldParentExtent - newPosition;
 				break;
 		}
 	}
 
 	protected void SetClientExtent(object? posVar)
 	{
-		var width = ClientWidth;
+		var width  = ClientWidth;
 		var height = ClientHeight;
 		switch (posVar)
 		{
@@ -849,11 +909,12 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 
 		Resize(X, Y, Width + width - ClientWidth, Height + height - ClientHeight);
 	}
+
 	private string GetClientExtent() => $"{ClientWidth} {ClientHeight}";
 
 	protected void SetExtent(object? posVar)
 	{
-		var width = Width;
+		var width  = Width;
 		var height = Height;
 		switch (posVar)
 		{
@@ -949,11 +1010,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		if (parts.Length > 3) Alpha = parts[3];
 	}
 
-	private static double[] ParseParts(string value, int maxParts) =>
-		value.TokenizeForScript(" ,")
-		     .Take(maxParts)
-		     .Select(part => TryParseDouble(part, out var parsed) ? parsed : 0)
-		     .ToArray();
+	private static double[] ParseParts(string value, int maxParts) => value.TokenizeForScript(" ,").Take(maxParts).Select(part => TryParseDouble(part, out var parsed) ? parsed : 0).ToArray();
 
 	private static string[] TokenizeParts(string value) => value.TokenizeForScript(" ,").ToArray();
 
@@ -963,39 +1020,38 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		return parts.Length >= 2 ? (parts[0], parts[1]) : (0, 0);
 	}
 
-		private (double X, double Y) GetGlobalPosition()
+	private (double X, double Y) GetGlobalPosition()
+	{
+		double              x       = X;
+		double              y       = Y;
+		HashSet<GuiControl> visited = new(ReferenceEqualityComparer.Instance) { this };
+		var                 parent  = Parent as GuiControl;
+		while (parent != null && visited.Add(parent))
 		{
-			double x = X;
-			double y = Y;
-			HashSet<GuiControl> visited = new(ReferenceEqualityComparer.Instance) { this };
-			var parent = Parent as GuiControl;
-			while (parent != null && visited.Add(parent))
-			{
-				x += parent.X;
-				y += parent.Y;
-				parent = parent.Parent as GuiControl;
+			x      += parent.X;
+			y      += parent.Y;
+			parent =  parent.Parent as GuiControl;
 		}
 
-			return (x, y);
-		}
+		return (x, y);
+	}
 
-		private bool CanUseParent(IGuiControl? parent)
+	private bool CanUseParent(IGuiControl? parent)
+	{
+		if (parent == null) return true;
+		if (ReferenceEquals(parent, this)) return false;
+
+		var current = parent as GuiControl;
+		while (current != null)
 		{
-			if (parent == null) return true;
-			if (ReferenceEquals(parent, this)) return false;
-
-			var current = parent as GuiControl;
-			while (current != null)
-			{
-				if (ReferenceEquals(current, this)) return false;
-				current = current.Parent as GuiControl;
-			}
-
-			return true;
+			if (ReferenceEquals(current, this)) return false;
+			current = current.Parent as GuiControl;
 		}
 
-	private static string FormatPoint(double x, double y) =>
-		$"{FormatFloat(x)},{FormatFloat(y)}";
+		return true;
+	}
+
+	private static string FormatPoint(double x, double y) => $"{FormatFloat(x)},{FormatFloat(y)}";
 
 	private void MaximizeToParent()
 	{
@@ -1003,25 +1059,23 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		Resize(0, 0, parent.Width, parent.Height);
 	}
 
-	private static string FormatFloat(double value) =>
-		value == 0 ? "0" : value.ToString("G", CultureInfo.InvariantCulture);
+	private static string FormatFloat(double value) => value == 0 ? "0" : value.ToString("G", CultureInfo.InvariantCulture);
 
 	private static int ToInt(object? value)
 	{
 		if (value is IStackEntry entry) value = entry.GetValue();
 		return value switch
 		{
-			null => -1,
-			double d => (int)d,
-			float f => (int)f,
-			int i => i,
+			null                                                              => -1,
+			double d                                                          => (int)d,
+			float f                                                           => (int)f,
+			int i                                                             => i,
 			TString text when TryParseDouble(text.ToString(), out var parsed) => (int)parsed,
-			string text when TryParseDouble(text, out var parsed) => (int)parsed,
-			IConvertible convertible => Convert.ToInt32(convertible, CultureInfo.InvariantCulture),
-			_ => -1
+			string text when TryParseDouble(text, out var parsed)             => (int)parsed,
+			IConvertible convertible                                          => Convert.ToInt32(convertible, CultureInfo.InvariantCulture),
+			_                                                                 => -1
 		};
 	}
 
-	private static bool TryParseDouble(string? value, out double parsed) =>
-		double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed);
+	private static bool TryParseDouble(string? value, out double parsed) => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed);
 }

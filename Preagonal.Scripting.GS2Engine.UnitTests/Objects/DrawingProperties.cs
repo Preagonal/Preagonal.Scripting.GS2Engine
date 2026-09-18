@@ -6,13 +6,7 @@ public class DrawingProperties : ScriptProperties<Drawing>
 {
 	public DrawingProperties() : base(typeof(ScriptVariable))
 	{
-		AddProperties(
-			this,
-			new()
-			{
-				{ "rotation", "", drawing => drawing.Rotation, (drawing, rotation) => drawing.Rotation = rotation },
-			}
-		);
+		AddProperties(this, new() { { "rotation", "", drawing => drawing.Rotation, (drawing, rotation) => drawing.Rotation = rotation }, });
 
 		/*
 		AddFunctions(

@@ -7,6 +7,36 @@ namespace Preagonal.Scripting.GS2Engine.UnitTests;
 public sealed class ScriptVariableStandardFunctionTests
 {
 	[Fact]
+	public async Task Call_Given_degrees_When_degtorad_is_called_Then_returns_radians()
+	{
+		var script = CompileScript("return degtorad(180);");
+
+		var result = await script.Call("onCreated");
+
+		Assert.Equal(Math.PI, result.GetValue<double>(), 10);
+	}
+
+	[Fact]
+	public async Task Call_Given_joined_class_When_isinclass_is_called_Then_returns_true()
+	{
+		var script = CompileScript("this.join(\"example\"); return this.isinclass(\"EXAMPLE\");");
+
+		var result = await script.Call("onCreated");
+
+		Assert.True(result.GetValue<bool>());
+	}
+
+	[Fact]
+	public async Task Call_Given_object_variables_When_clearvars_is_called_Then_removes_them()
+	{
+		var script = CompileScript("this.value = 1; this.clearvars(); return this.value;");
+
+		var result = await script.Call("onCreated");
+
+		Assert.Equal(string.Empty, result.GetValue()?.ToString());
+	}
+
+	[Fact]
 	public async Task Call_Given_number_When_type_is_called_Then_returns_number_type()
 	{
 		//Arrange
@@ -450,12 +480,7 @@ public sealed class ScriptVariableStandardFunctionTests
 
 	private static Script CompileScript(string body)
 	{
-		var compilation = Interface.CompileCode(
-			$"function onCreated() {{ {body} }}",
-			"weapon",
-			"script-variable-standard-functions",
-			withHeader: false
-		);
+		var compilation = Interface.CompileCode($"function onCreated() {{ {body} }}", "weapon", "script-variable-standard-functions", withHeader: false);
 		if (!compilation.Success)
 			throw new InvalidOperationException($"Script failure: {compilation.ErrMsg}");
 

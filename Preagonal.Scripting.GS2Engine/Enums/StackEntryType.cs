@@ -12,4 +12,5 @@ public enum StackEntryType
 	Function,
 	Script,
 	ScriptProperty,
+	Null,
 }

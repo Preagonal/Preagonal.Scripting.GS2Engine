@@ -8,7 +8,13 @@ public class GuiControlProfileProperties : ScriptProperties<GuiControlProfile>
 	{
 		var properties = new PropertyDefinitions<GuiControlProfile>
 		{
-			{ "align", "The profile's text alignment.", profile => profile.Align, (profile, value) => { profile.Align = value; profile.Justify = value; } },
+			{
+				"align", "The profile's text alignment.", profile => profile.Align, (profile, value) =>
+				{
+					profile.Align   = value;
+					profile.Justify = value;
+				}
+			},
 			{ "autosizeheight", "Whether controls automatically size their height to content.", profile => profile.AutoSizeHeight, (profile, value) => profile.AutoSizeHeight = value },
 			{ "autosizewidth", "Whether controls automatically size their width to content.", profile => profile.AutoSizeWidth, (profile, value) => profile.AutoSizeWidth = value },
 			{ "backgroundinset", "The inset applied when drawing the background.", profile => profile.BackgroundInset, (profile, value) => profile.BackgroundInset = value },
@@ -42,7 +48,13 @@ public class GuiControlProfileProperties : ScriptProperties<GuiControlProfile>
 			{ "fontstylenumbers", "The style used for numeric literals.", profile => profile.FontStyleNumbers, (profile, value) => profile.FontStyleNumbers = value },
 			{ "fonttype", "The font resource name.", profile => profile.FontType, (profile, value) => profile.FontType = value },
 			{ "gradientcolor", "The secondary color used for gradients.", profile => profile.GradientColor, (profile, value) => profile.GradientColor = value },
-			{ "justify", "The profile's text justification.", profile => profile.Align, (profile, value) => { profile.Align = value; profile.Justify = value; } },
+			{
+				"justify", "The profile's text justification.", profile => profile.Align, (profile, value) =>
+				{
+					profile.Align   = value;
+					profile.Justify = value;
+				}
+			},
 			{ "linespacing", "The spacing between text lines.", profile => profile.LineSpacing, (profile, value) => profile.LineSpacing = value },
 			{ "mouseoverbitmap", "The bitmap shown while the pointer is over a control.", profile => profile.MouseOverBitmap, (profile, value) => profile.MouseOverBitmap = value },
 			{ "mouseoverselected", "Whether pointer hover uses the selected visual state.", profile => profile.MouseOverSelected, (profile, value) => profile.MouseOverSelected = value },
@@ -69,7 +81,13 @@ public class GuiControlProfileProperties : ScriptProperties<GuiControlProfile>
 		{
 			{ "gettextwidth", "Returns the rendered width of the specified text.", (profile, args) => profile.GetTextWidth(args.Length > 0 ? args[0].GetValue()?.ToString() ?? string.Empty : string.Empty), [new("text", typeof(string))], typeof(int) },
 			{ "gettextheight", "Returns the rendered line height of the profile font.", (profile, _) => profile.GetTextHeight(), [], typeof(int) },
-			{ "preloadfont", "Preloads the profile font resources.", (profile, _) => { profile.PreloadFont(); return 0; } }
+			{
+				"preloadfont", "Preloads the profile font resources.", (profile, _) =>
+				{
+					profile.PreloadFont();
+					return 0;
+				}
+			}
 		};
 		AddFunctions(this, functions);
 		Compile();

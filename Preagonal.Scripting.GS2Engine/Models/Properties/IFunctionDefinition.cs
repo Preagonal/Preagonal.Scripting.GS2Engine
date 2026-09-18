@@ -9,6 +9,6 @@ public interface IFunctionDefinition<in T>
 	string                                     PropertyName { get; }
 	string                                     Description  { get; }
 	Type                                       ReturnType   { get; }
-	IReadOnlyList<FunctionParameterDefinition> Parameters { get; }
+	IReadOnlyList<FunctionParameterDefinition> Parameters   { get; }
 	object?                                    Call(T instance, ScriptMachine? machine, params IStackEntry[] arguments);
 }

@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using Preagonal.Scripting.GS2Engine.Extensions;
 using Preagonal.Scripting.GS2Engine.Models;
@@ -12,21 +14,21 @@ public class ScriptManager : IScriptManager
 {
 	private const string GlobalScriptPrefix = "__script:";
 
-	protected readonly ILogger<ScriptManager>                       _logger;
+	protected readonly ILogger<ScriptManager>                          _logger;
 	public static      ConcurrentDictionary<string, IScriptProperties> GlobalProperties { get; } = [];
-	public             ScriptVariable                               GlobalVariables  { get; } = new();
-	private readonly   Dictionary<string, ScriptObjectCreator>      _objectCreators  = new(StringComparer.OrdinalIgnoreCase);
-	private readonly   object                                       _globalScriptsSync = new();
-	private            Script[]                                     _globalScripts = [];
-	private            bool                                         _globalScriptsDirty = true;
-	private            Action<string>?                              _classScriptRequestHandler;
+	public             ScriptVariable                                  GlobalVariables  { get; } = new();
+	private readonly   Dictionary<string, ScriptObjectCreator>         _objectCreators     = new(StringComparer.OrdinalIgnoreCase);
+	private readonly   Lock                                            _globalScriptsSync  = new();
+	private            Script[]                                        _globalScripts      = [];
+	private            bool                                            _globalScriptsDirty = true;
+	private            Action<string>?                                 _classScriptRequestHandler;
 
 	public ScriptManager(ILogger<ScriptManager> logger)
 	{
 		_logger = logger;
-		_ = TString.PropertiesInstance;
-		_ = ScriptArrayProperties.Instance;
-		_ = VersionProperties.Instance;
+		_       = TString.PropertiesInstance;
+		_       = ScriptArrayProperties.Instance;
+		_       = VersionProperties.Instance;
 		RegisterDefaultObjectCreators();
 	}
 
@@ -55,14 +57,11 @@ public class ScriptManager : IScriptManager
 			guiControl.InstallEventCatchers(script);
 	}
 
-	public void RegisterGlobalVariable(string name, object? variable) =>
-		GlobalVariables.AddOrUpdate(name.ToLowerInvariant(), variable.ToStackEntry());
+	public void RegisterGlobalVariable(string name, object? variable) => GlobalVariables.AddOrUpdate(name.ToLowerInvariant(), variable.ToStackEntry());
 
-	public void RegisterObjectCreator(string typeName, ScriptObjectCreator creator) =>
-		_objectCreators[typeName] = creator;
+	public void RegisterObjectCreator(string typeName, ScriptObjectCreator creator) => _objectCreators[typeName] = creator;
 
-	public void SetClassScriptRequestHandler(Action<string>? handler) =>
-		_classScriptRequestHandler = handler;
+	public void SetClassScriptRequestHandler(Action<string>? handler) => _classScriptRequestHandler = handler;
 
 	public virtual void RequestClassScript(string className)
 	{
@@ -74,12 +73,15 @@ public class ScriptManager : IScriptManager
 	public bool TryCreateObject(string typeName, string objectName, Script script, out ScriptVariable? createdObject)
 	{
 		var normalizedObjectName = objectName.ToLowerInvariant();
-		if (!string.IsNullOrEmpty(normalizedObjectName) &&
-		    GlobalVariables.TryGetVariable(normalizedObjectName, out var existingEntry) &&
-		    existingEntry?.GetValue<ScriptVariable>() is { } existingObject)
+		if (!string.IsNullOrEmpty(normalizedObjectName) && GlobalVariables.TryGetVariable(normalizedObjectName, out var existingEntry) && existingEntry?.GetValue<ScriptVariable>() is { } existingObject)
 		{
-			createdObject = existingObject;
-			return true;
+			// A forward reference creates a plain placeholder. A later `new` must
+			// replace it with the requested concrete object.
+			if (existingObject.GetType() != typeof(ScriptVariable))
+			{
+				createdObject = existingObject;
+				return true;
+			}
 		}
 
 		if (_objectCreators.TryGetValue(typeName, out var creator))
@@ -95,16 +97,33 @@ public class ScriptManager : IScriptManager
 			return true;
 		}
 
+		if (GlobalVariables.TryGetVariable(typeName.ToLowerInvariant(), out var templateEntry) && templateEntry?.GetValue() is ScriptVariable template && template.GetType() == typeof(ScriptVariable))
+		{
+			createdObject = new ScriptVariable(objectName);
+			foreach (var (name, value) in template.GetSnapshot())
+				createdObject.AddOrUpdate(name, CopyTemplateValue(value.GetValue()).ToStackEntry());
+			RegisterCreatedObject(objectName, script, createdObject);
+			return true;
+		}
+
 		createdObject = null;
 		return false;
+	}
+
+	private static object? CopyTemplateValue(object? value)
+	{
+		// Array values are copied; references to other script objects retain their identity.
+		if (value is not IList array) return value;
+		var copy = new List<object?>(array.Count);
+		foreach (var item in array)
+			copy.Add(CopyTemplateValue(item is IStackEntry entry ? entry.GetValue() : item));
+		return copy;
 	}
 
 	public void UnregisterGlobalObject(string name, ScriptVariable collection)
 	{
 		var normalizedName = name.ToLowerInvariant();
-		if (string.IsNullOrEmpty(normalizedName) ||
-		    !GlobalVariables.TryGetVariable(normalizedName, out var existingEntry) ||
-		    !ReferenceEquals(existingEntry?.GetValue<ScriptVariable>(), collection))
+		if (string.IsNullOrEmpty(normalizedName) || !GlobalVariables.TryGetVariable(normalizedName, out var existingEntry) || !ReferenceEquals(existingEntry?.GetValue<ScriptVariable>(), collection))
 		{
 			return;
 		}
@@ -122,8 +141,7 @@ public class ScriptManager : IScriptManager
 		foreach (var (name, entry) in GlobalVariables.GetSnapshot())
 		{
 			var value = entry.GetValue();
-			if (ReferenceEquals(value, script) ||
-			    value is ScriptVariable { OwnerScript: { } owner } && ReferenceEquals(owner, script))
+			if (ReferenceEquals(value, script) || value is ScriptVariable { OwnerScript: { } owner } && ReferenceEquals(owner, script))
 			{
 				GlobalVariables.RemoveVariable(name);
 			}
@@ -139,18 +157,13 @@ public class ScriptManager : IScriptManager
 		{
 			if (!_globalScriptsDirty) return _globalScripts;
 
-			_globalScripts = GlobalVariables
-				.GetSnapshot()
-				.Where(pair => pair.Key.StartsWith(GlobalScriptPrefix, StringComparison.Ordinal))
-				.Select(pair => pair.Value.GetValue())
-				.OfType<Script>()
-				.ToArray();
+			_globalScripts      = GlobalVariables.GetSnapshot().Where(pair => pair.Key.StartsWith(GlobalScriptPrefix, StringComparison.Ordinal)).Select(pair => pair.Value.GetValue()).OfType<Script>().ToArray();
 			_globalScriptsDirty = false;
 			return _globalScripts;
 		}
 	}
 
-	private static string GetGlobalScriptKey(Script script) => $"{GlobalScriptPrefix}{script.GetHashCode()}";
+	private static string GetGlobalScriptKey(Script script)     => $"{GlobalScriptPrefix}{script.GetHashCode()}";
 	private static string GetGlobalScriptNameKey(Script script) => script.Name?.ToString().ToLowerInvariant() ?? string.Empty;
 
 	private void RegisterCreatedObject(string objectName, Script script, ScriptVariable? createdObject)
@@ -168,12 +181,7 @@ public class ScriptManager : IScriptManager
 			guiControl.InstallEventCatchers(script);
 	}
 
-	private IReadOnlyCollection<GuiControl> GetGlobalGuiControls() =>
-		GlobalVariables
-			.GetSnapshot()
-			.Select(pair => pair.Value.GetValue())
-			.OfType<GuiControl>()
-			.ToList();
+	private IReadOnlyCollection<GuiControl> GetGlobalGuiControls() => GlobalVariables.GetSnapshot().Select(pair => pair.Value.GetValue()).OfType<GuiControl>().ToList();
 
 	private bool TryCreateProfile(string typeName, string objectName, out ScriptVariable? createdObject)
 	{
@@ -184,8 +192,7 @@ public class ScriptManager : IScriptManager
 		}
 
 		var profile = CreateGuiControlProfile(objectName, copyDefaultProfile: true);
-		if (GlobalVariables.TryGetVariable(typeName.ToLowerInvariant(), out var templateEntry) &&
-		    templateEntry?.GetValue<GuiControlProfile>() is { } template)
+		if (GlobalVariables.TryGetVariable(typeName.ToLowerInvariant(), out var templateEntry) && templateEntry?.GetValue<GuiControlProfile>() is { } template)
 		{
 			profile.CopyFrom(template);
 		}
@@ -198,6 +205,7 @@ public class ScriptManager : IScriptManager
 	{
 		RegisterObjectCreator("GuiControl", (id, script) => new GuiControl(id, script));
 		RegisterObjectCreator("GuiControlProfile", (id, _) => CreateGuiControlProfile(id, copyDefaultProfile: true));
+		RegisterObjectCreator("TStaticVar", (id, _) => new ScriptVariable(id));
 	}
 
 	private GuiControlProfile CreateGuiControlProfile(string objectName, bool copyDefaultProfile)

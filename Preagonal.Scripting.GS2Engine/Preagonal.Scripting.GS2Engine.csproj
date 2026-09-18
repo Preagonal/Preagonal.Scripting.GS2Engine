@@ -1,54 +1,54 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<ImplicitUsings>false</ImplicitUsings>
-		<Nullable>enable</Nullable>
-		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-		<LangVersion>latest</LangVersion>
-		<Title>GS2Engine</Title>
-		<Authors>Preagonal</Authors>
-		<Copyright>Preagonal 2023-2026</Copyright>
-		<PackageProjectUrl>https://github.com/Preagonal/GS2Engine</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/Preagonal/GS2Engine</RepositoryUrl>
-		<AssemblyVersion>1.0.0</AssemblyVersion>
-		<FileVersion>1.0.0</FileVersion>
-		<NeutralLanguage>en-US</NeutralLanguage>
-		<TargetFramework>net10.0</TargetFramework>
-	</PropertyGroup>
+    <PropertyGroup>
+        <ImplicitUsings>false</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <LangVersion>latest</LangVersion>
+        <Title>GS2Engine</Title>
+        <Authors>Preagonal</Authors>
+        <Copyright>Preagonal 2023-2026</Copyright>
+        <PackageProjectUrl>https://github.com/Preagonal/GS2Engine</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Preagonal/GS2Engine</RepositoryUrl>
+        <AssemblyVersion>1.0.0</AssemblyVersion>
+        <FileVersion>1.0.0</FileVersion>
+        <NeutralLanguage>en-US</NeutralLanguage>
+        <TargetFramework>net10.0</TargetFramework>
+    </PropertyGroup>
 
-	<PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-	</PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    </PropertyGroup>
 
-	<PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-	  <Optimize>true</Optimize>
-	  <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-	</PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+        <Optimize>true</Optimize>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    </PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="5.0.0.1">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-	</ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="5.0.0.1">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4"/>
+    </ItemGroup>
 
-	<ItemGroup>
-		<Compile Remove="Program.cs" />
-		<Compile Remove="Native.cs" />
-		<Compile Remove="TestApp\**" />
-		<None Remove="TestApp\**" />
-	</ItemGroup>
+    <ItemGroup>
+        <Compile Remove="Program.cs"/>
+        <Compile Remove="Native.cs"/>
+        <Compile Remove="TestApp\**"/>
+        <None Remove="TestApp\**"/>
+    </ItemGroup>
 
-	<ItemGroup>
-		<EmbeddedResource Remove="TestApp\**" />
-	</ItemGroup>
+    <ItemGroup>
+        <EmbeddedResource Remove="TestApp\**"/>
+    </ItemGroup>
 
-	<ItemGroup>
-		<Content Include="..\Jenkinsfile">
-			<Link>Jenkinsfile</Link>
-		</Content>
-	</ItemGroup>
+    <ItemGroup>
+        <Content Include="..\Jenkinsfile">
+            <Link>Jenkinsfile</Link>
+        </Content>
+    </ItemGroup>
 
 </Project>

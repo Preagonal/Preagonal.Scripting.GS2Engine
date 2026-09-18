@@ -43,7 +43,7 @@ public sealed class ScriptArrayProperties : ScriptProperties<IList>
 		if (args.Length == 0)
 			return Array.Empty<object?>();
 
-		var value = Unwrap(args[0].GetValue());
+		var value   = Unwrap(args[0].GetValue());
 		var indices = new List<object?>();
 		for (var index = 0; index < target.Count; index++)
 		{
@@ -59,7 +59,7 @@ public sealed class ScriptArrayProperties : ScriptProperties<IList>
 		if (args.Length < 2)
 			return 0;
 
-		var index = ToScriptInt(args[0].GetValue().ToScriptDouble());
+		var index  = ToScriptInt(args[0].GetValue().ToScriptDouble());
 		var values = GetValues(args[1]);
 		if (values == null)
 			return 0;
@@ -83,14 +83,12 @@ public sealed class ScriptArrayProperties : ScriptProperties<IList>
 		if (value is IList list)
 			return list;
 
-		return value is IEnumerable enumerable and not string and not TString
-			? enumerable.Cast<object?>().Select(Unwrap).ToArray()
-			: null;
+		return value is IEnumerable enumerable and not string and not TString ? enumerable.Cast<object?>().Select(Unwrap).ToArray() : null;
 	}
 
 	private static bool ScriptValuesEqual(object? left, object? right)
 	{
-		left = Unwrap(left);
+		left  = Unwrap(left);
 		right = Unwrap(right);
 
 		if (ReferenceEquals(left, right))
@@ -113,13 +111,12 @@ public sealed class ScriptArrayProperties : ScriptProperties<IList>
 		return value;
 	}
 
-	private static bool IsNumeric(object value) =>
-		value is bool or byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal;
+	private static bool IsNumeric(object value) => value is bool or byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal;
 
 	private static int ToScriptInt(double value)
 	{
 		var adjusted = value + 0.0001d;
-		var result = (int)adjusted;
+		var result   = (int)adjusted;
 		return adjusted < 0.0d && adjusted != result ? result - 1 : result;
 	}
 }

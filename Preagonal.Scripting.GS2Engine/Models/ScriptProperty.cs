@@ -9,7 +9,6 @@ public delegate void CallbackDelegate(object? value);
 
 public class ScriptProperty<TInstance> : IScriptProperty where TInstance : class
 {
-
 	public ScriptProperty(IPropertyDefinition<TInstance> definition, IScriptProperties properties)
 	{
 		PropertyName       = definition.PropertyName;
@@ -36,17 +35,17 @@ public class ScriptProperty<TInstance> : IScriptProperty where TInstance : class
 		Parameters         = definition.Parameters;
 	}
 
-	public  ScriptPropertyType                           ScriptPropertyType { get; }
-	public  string                                       PropertyName       { get; }
-	public  string                                       Description        { get; }
-	public  Type                                         MainType           { get; } = typeof(TInstance);
-	public  Type                                         ReturnType         { get; }
-	public  IReadOnlyList<FunctionParameterDefinition>   Parameters         { get; }
-	private Func<TInstance, object?>?                    ReadTyped          { get; }
-	private Action<TInstance, object?>?                  WriteTyped         { get; }
-	private Func<TInstance, ScriptMachine?, IStackEntry[], object?>? CallTyped { get; }
-	private CallbackDelegate?                            Callback           { get; set; }
-	public  IScriptProperties?                           Properties         { get; }
+	public  ScriptPropertyType                                       ScriptPropertyType { get; }
+	public  string                                                   PropertyName       { get; }
+	public  string                                                   Description        { get; }
+	public  Type                                                     MainType           { get; } = typeof(TInstance);
+	public  Type                                                     ReturnType         { get; }
+	public  IReadOnlyList<FunctionParameterDefinition>               Parameters         { get; }
+	private Func<TInstance, object?>?                                ReadTyped          { get; }
+	private Action<TInstance, object?>?                              WriteTyped         { get; }
+	private Func<TInstance, ScriptMachine?, IStackEntry[], object?>? CallTyped          { get; }
+	private CallbackDelegate?                                        Callback           { get; set; }
+	public  IScriptProperties?                                       Properties         { get; }
 
 	public bool HasWriteMethod => WriteTyped != null;
 	public bool HasReadMethod  => ReadTyped != null;
@@ -60,15 +59,9 @@ public class ScriptProperty<TInstance> : IScriptProperty where TInstance : class
 		Callback?.Invoke(value);
 	}
 
-	object? IScriptProperty.Call(object instance, params IStackEntry[] value) =>
-		CallTyped != null
-			? CallTyped.Invoke((TInstance)instance, null, value)
-			: ReadTyped?.Invoke((TInstance)instance);
+	object? IScriptProperty.Call(object instance, params IStackEntry[] value) => CallTyped != null ? CallTyped.Invoke((TInstance)instance, null, value) : ReadTyped?.Invoke((TInstance)instance);
 
-	object? IScriptProperty.Call(ScriptMachine machine, object instance, params IStackEntry[] value) =>
-		CallTyped != null
-			? CallTyped.Invoke((TInstance)instance, machine, value)
-			: ReadTyped?.Invoke((TInstance)instance);
+	object? IScriptProperty.Call(ScriptMachine machine, object instance, params IStackEntry[] value) => CallTyped != null ? CallTyped.Invoke((TInstance)instance, machine, value) : ReadTyped?.Invoke((TInstance)instance);
 
 	public void SetCallback(CallbackDelegate callback) => Callback = callback;
 }

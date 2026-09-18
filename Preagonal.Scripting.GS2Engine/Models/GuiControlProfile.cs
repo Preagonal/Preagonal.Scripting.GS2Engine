@@ -5,7 +5,7 @@ namespace Preagonal.Scripting.GS2Engine.Models;
 public class GuiControlProfile(string name = "") : ScriptVariable(name)
 {
 	public new static readonly GuiControlProfileProperties PropertiesInstance = [];
-	public override IScriptProperties Properties => PropertiesInstance;
+	public override            IScriptProperties           Properties => PropertiesInstance;
 
 	public string Align                 { get; set; } = "left";
 	public bool   AutoSizeHeight        { get; set; }
@@ -18,7 +18,7 @@ public class GuiControlProfile(string name = "") : ScriptVariable(name)
 	public string BorderColor           { get; set; } = string.Empty;
 	public string BorderColorHl         { get; set; } = string.Empty;
 	public string BorderColorNa         { get; set; } = string.Empty;
-	public int    BorderThickness       { get; set; }
+	public int    BorderThickness       { get; set; } = 1;
 	public string BoxExtent             { get; set; } = string.Empty;
 	public bool   CanKeyFocus           { get; set; }
 	public string CursorColor           { get; set; } = string.Empty;
@@ -122,7 +122,7 @@ public class GuiControlProfile(string name = "") : ScriptVariable(name)
 		FontPreloaded         = source.FontPreloaded;
 	}
 
-	public int GetTextWidth(string text) => text.Length * Math.Max(FontSize, 1) / 2;
-	public int GetTextHeight() => Math.Max(FontSize, 1);
-	public void PreloadFont() => FontPreloaded = true;
+	public int  GetTextWidth(string text) => text.Length * Math.Max(FontSize, 1) / 2;
+	public int  GetTextHeight()           => Math.Max(FontSize, 1);
+	public void PreloadFont()             => FontPreloaded = true;
 }

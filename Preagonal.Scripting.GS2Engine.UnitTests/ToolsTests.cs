@@ -14,7 +14,7 @@ public class ToolsTests
 	public void Given_debug_is_disabled_When_writing_interpolated_debug_line_Then_values_are_not_formatted()
 	{
 		var previousDebug = Tools.DEBUG_ON;
-		var value          = new FormattingProbe();
+		var value         = new FormattingProbe();
 		try
 		{
 			Tools.DEBUG_ON = false;

@@ -20,7 +20,7 @@ public class Drawing : ScriptVariable
 		float rotation = 0f
 	)
 	{
-		_image   = image;
+		_image = image;
 		//Position = new(x, y);
 
 		//if (cropx != null && cropy != null && width != null && height != null)
@@ -28,13 +28,13 @@ public class Drawing : ScriptVariable
 
 		Rotation = rotation;
 		Zoom     = zoom;
-		Hidden  = false;
+		Hidden   = false;
 	}
 
 	//public virtual Texture2D? Image    => TextureSystem.GetInstance().GetImage(_image);
 	//public         Vector2    Position { get; private protected set; }
 	//public         Rectangle? Source   { get; private set; }
-	public         bool       Hidden   { get; private protected set; }
+	public bool Hidden { get; private protected set; }
 	//public         Color      Color    { get; private protected set; } = Color.White;
 
 	public double Rotation { get; set; }
@@ -42,16 +42,18 @@ public class Drawing : ScriptVariable
 
 	public void ShowImg(string? image, int x, int y)
 	{
-		_image   = image;
+		_image = image;
 		//Position = new(x, y);
-		Hidden  = false;
+		Hidden = false;
 	}
 
 	public void ChangeImgVis(ImgVis imgVis) => Layer = imgVis;
+
 	//public void ChangeImgPart(int x, int y, int w, int h) => Source = new Rectangle(x, y, w, h);
-	public void ChangeImgZoom(double zoom)                => Zoom = (float)zoom;
+	public void ChangeImgZoom(double zoom) => Zoom = (float)zoom;
+
 	//public void ChangeImgColors(int r, int g, int b, int a) => Color = new(r, g, b, a);
-	public void Hide() => Hidden = true;
-	public void Show() => Hidden = false;
-	public float Zoom { get; private set; } = 1.00f;
+	public void  Hide() => Hidden = true;
+	public void  Show() => Hidden = false;
+	public float Zoom   { get; private set; } = 1.00f;
 }

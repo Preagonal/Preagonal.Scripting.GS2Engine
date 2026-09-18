@@ -69,7 +69,7 @@ public class TStringTests
 	public void Given_unchanged_value_When_converting_to_string_Then_reuses_decoded_value()
 	{
 		TString value = new byte[] { (byte)'a', (byte)'b', (byte)'c' };
-		var first = value.ToString();
+		var     first = value.ToString();
 
 		var second = value.ToString();
 
@@ -130,7 +130,7 @@ public class TStringTests
 	public void Given_equal_operator_When_comparing_tstring_with_null_Then_value_is_false()
 	{
 		//Arrange
-		TString string1 = "ASD";
+		TString  string1 = "ASD";
 		TString? string2 = null;
 
 		//Act
@@ -186,8 +186,6 @@ public class TStringTests
 		//Assert
 		Assert.Equal(0, result);
 	}
-
-
 
 	[Fact]
 	public void Given_string_When_getting_hashcode_Then_value_is_always_the_same()

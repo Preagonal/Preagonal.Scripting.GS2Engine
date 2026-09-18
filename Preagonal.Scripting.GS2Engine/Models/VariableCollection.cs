@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Preagonal.Scripting.GS2Engine.Extensions;
 
 namespace Preagonal.Scripting.GS2Engine.Models;
@@ -8,8 +9,8 @@ public class VariableCollection
 {
 	public delegate object? VariableCollectionGetCallback();
 
-	private readonly Dictionary<string, IStackEntry>                _collection = new();
-	private readonly object                                         _syncRoot = new();
+	private readonly Dictionary<string, IStackEntry> _collection = new();
+	private readonly Lock                            _syncRoot   = new();
 
 	public VariableCollection()
 	{
@@ -23,10 +24,7 @@ public class VariableCollection
 		set => SetVariable(key, value);
 	}
 
-	public IStackEntry GetVariable(TString variable) =>
-		TryGetVariable(variable, out var entry)
-			? entry!
-			: SetVariable(variable, "".ToStackEntry());
+	public IStackEntry GetVariable(TString variable) => TryGetVariable(variable, out var entry) ? entry! : SetVariable(variable, "".ToStackEntry());
 
 	public void Clear()
 	{

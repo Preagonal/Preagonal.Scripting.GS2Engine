@@ -9,7 +9,7 @@ public class VariableCollectionTests
 	{
 		var collection = new VariableCollection();
 
-		var first = collection.GetSnapshot();
+		var first  = collection.GetSnapshot();
 		var second = collection.GetSnapshot();
 
 		Assert.Same(first, second);

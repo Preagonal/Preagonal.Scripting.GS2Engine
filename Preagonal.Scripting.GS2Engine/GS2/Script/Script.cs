@@ -27,32 +27,40 @@ public class Script : ScriptVariable
 
 	private static readonly Dictionary<string, string> Gs1EventAliases = new(StringComparer.OrdinalIgnoreCase)
 	{
-		["playertouchesme"] = "playertouchsme",
-		["playertouchesother"] = "playertouchsother",
-		["playerhurted"] = "playerhurt",
-		["wasshooted"] = "wasshot",
+		["playertouchesme"] = "playertouchsme", ["playertouchesother"] = "playertouchsother", ["playerhurted"] = "playerhurt", ["wasshooted"] = "wasshot",
 	};
+
 	private static readonly ConcurrentBag<HashSet<string>> EventLookupVisitedPool = new();
 
-	public delegate            IStackEntry                        Command(ScriptMachine machine, IStackEntry[]? args);
-	public new static readonly ScriptObjProperties                PropertiesInstance = [];
-	public override            IScriptProperties                  Properties => PropertiesInstance;
-	private readonly           List<TString>                      _strings  = [];
-	private readonly           Dictionary<string, Dictionary<Script, string>> _eventCatchers = new(StringComparer.OrdinalIgnoreCase);
-	private readonly           object                             _functionsLock = new();
-	private readonly           object                             _timerSync = new();
-	private                    DateTime?                          _timer;
-	public readonly            Dictionary<string, FunctionParams> Functions = new();
-	private                    ScriptCom[]                        _bytecode = [];
-	public readonly            ScriptVariable?                    RefObject = null;
-	public                     bool                               ExecutionEnabled { get; private set; } = true;
-	public                     bool                               HasOnlyFunctions { get; private set; } = true;
-	public                     TString                            File             { get; set; }
-	public                     string                             SourceServer     { get; set; } = "Offline";
-	public                     ScriptType                         Type             { get; }
-	private                    int                                Gs1Flags         { get; set; }
-	public                     ScriptMachine                      Machine          { get; }
-	public                     DateTime?                          Timer
+	public delegate IStackEntry Command(ScriptMachine machine, IStackEntry[]? args);
+
+	public new static readonly ScriptObjProperties PropertiesInstance = [];
+	public override            IScriptProperties   Properties => PropertiesInstance;
+	private readonly           List<TString>       _strings = [];
+
+	private sealed record EventCatcher(string Handler, ScriptVariable? Sender = null);
+
+	private readonly Dictionary<string, Dictionary<Script, EventCatcher>> _eventCatchers      = new(StringComparer.OrdinalIgnoreCase);
+	private readonly object                                               _functionsLock      = new();
+	private readonly object                                               _timerSync          = new();
+	private readonly object                                               _receiverTimerSync  = new();
+	private readonly object                                               _scheduledEventSync = new();
+	private readonly Dictionary<ScriptVariable, DateTime>                 _receiverTimers     = new(ReferenceEqualityComparer.Instance);
+	private readonly List<ScriptScheduledEvent>                           _scheduledEvents    = [];
+	private          DateTime?                                            _timer;
+	public readonly  Dictionary<string, FunctionParams>                   Functions = new();
+	private          ScriptCom[]                                          _bytecode = [];
+	public readonly  ScriptVariable?                                      RefObject = null;
+	public           bool                                                 ExecutionEnabled { get; private set; } = true;
+	public           bool                                                 HasOnlyFunctions { get; private set; } = true;
+	public           TString                                              File             { get; set; }
+	public           string                                               SourceServer     { get; set; } = "Offline";
+	public           ScriptType                                           Type             { get; }
+	public           int                                                  ScriptRevision   { get; private set; }
+	private          int                                                  Gs1Flags         { get; set; }
+	public           ScriptMachine                                        Machine          { get; }
+
+	public DateTime? Timer
 	{
 		get
 		{
@@ -65,9 +73,8 @@ public class Script : ScriptVariable
 				_timer = value;
 		}
 	}
-	public                     ScriptCom[]                        Bytecode         => _bytecode;
 
-
+	public ScriptCom[] Bytecode => _bytecode;
 
 	public Script(IScriptManager scriptManager, ScriptType type)
 	{
@@ -80,33 +87,22 @@ public class Script : ScriptVariable
 		Type          = type;
 	}
 
-	public Script(
-		IScriptManager scriptManager,
-		TString bytecodeFile,
-		ScriptVariable? refObject = null,
-		ScriptType? type = null
-	)
+	public Script(IScriptManager scriptManager, TString bytecodeFile, ScriptVariable? refObject = null, ScriptType? type = null)
 	{
 		_             = Properties;
 		ScriptManager = scriptManager;
-		Name      = Path.GetFileNameWithoutExtension(bytecodeFile);
-		File      = bytecodeFile;
-		RefObject = refObject;
-		Machine   = new(this);
-		Type      = type ?? ScriptType.Weapon;
+		Name          = Path.GetFileNameWithoutExtension(bytecodeFile);
+		File          = bytecodeFile;
+		RefObject     = refObject;
+		Machine       = new(this);
+		Type          = type ?? ScriptType.Weapon;
 
 		SetStream(ReadAllBytes(bytecodeFile));
 
 		Init();
 	}
 
-	public Script(
-		IScriptManager scriptManager,
-		TString name,
-		byte[] bytecode,
-		ScriptVariable? refObject = null,
-		ScriptType? type = null
-	)
+	public Script(IScriptManager scriptManager, TString name, byte[] bytecode, ScriptVariable? refObject = null, ScriptType? type = null)
 	{
 		_             = Properties;
 		ScriptManager = scriptManager;
@@ -163,7 +159,11 @@ public class Script : ScriptVariable
 		_bytecode = [];
 		_strings.Clear();
 		Clear();
-		Gs1Flags = 0;
+		lock (_scheduledEventSync)
+			_scheduledEvents.Clear();
+		lock (_receiverTimerSync)
+			_receiverTimers.Clear();
+		Gs1Flags         = 0;
 		HasOnlyFunctions = true;
 		HaltExecution();
 	}
@@ -418,6 +418,7 @@ public class Script : ScriptVariable
 		FixBadByteCode();
 		CheckOnlyFunctions();
 		OptimizeByteCode();
+		ScriptRevision++;
 	}
 
 	private void FixBadByteCode()
@@ -425,7 +426,7 @@ public class Script : ScriptVariable
 		var bytecodeLength = _bytecode.Length;
 		for (var index = 0; index < bytecodeLength; index++)
 		{
-			var op = _bytecode[index];
+			var op           = _bytecode[index];
 			var branchOffset = (byte)op.OpCode - (byte)Opcode.OP_SET_INDEX;
 			if (branchOffset is < 0 or >= 5)
 				continue;
@@ -446,8 +447,7 @@ public class Script : ScriptVariable
 			return;
 		}
 
-		HasOnlyFunctions = _bytecode[0].OpCode == Opcode.OP_SET_INDEX &&
-		                   _bytecode.Length <= _bytecode[0].Value;
+		HasOnlyFunctions = _bytecode[0].OpCode == Opcode.OP_SET_INDEX && _bytecode.Length <= _bytecode[0].Value;
 	}
 
 	private void OptimizeByteCode()
@@ -457,7 +457,7 @@ public class Script : ScriptVariable
 
 		for (var index = 0; index < _bytecode.Length - 1; index++)
 		{
-			var op = _bytecode[index];
+			var op   = _bytecode[index];
 			var next = _bytecode[index + 1];
 
 			if (op.OpCode == Opcode.OP_TYPE_NUMBER)
@@ -471,9 +471,7 @@ public class Script : ScriptVariable
 				}
 
 				var hasAssignAfterNext = index + 2 < _bytecode.Length && _bytecode[index + 2].OpCode == Opcode.OP_ASSIGN;
-				var replacement = hasAssignAfterNext
-					? GetOptimizedImmediateAssignOpcode(next.OpCode)
-					: GetOptimizedImmediateOpcode(next.OpCode);
+				var replacement        = hasAssignAfterNext ? GetOptimizedImmediateAssignOpcode(next.OpCode) : GetOptimizedImmediateOpcode(next.OpCode);
 
 				if (replacement != null)
 				{
@@ -506,27 +504,26 @@ public class Script : ScriptVariable
 				if (next.OpCode == Opcode.OP_MEMBER_ACCESS)
 				{
 					var replacement = Opcode.OP_UNKNOWN_234;
-					var consumed = 1;
+					var consumed    = 1;
 					if (index + 2 < _bytecode.Length)
 					{
 						switch (_bytecode[index + 2].OpCode)
 						{
 							case Opcode.OP_CONV_TO_FLOAT:
 								replacement = Opcode.OP_UNKNOWN_236;
-								consumed = 2;
+								consumed    = 2;
 								break;
 							case Opcode.OP_CONV_TO_STRING:
 								replacement = Opcode.OP_UNKNOWN_237;
-								consumed = 2;
+								consumed    = 2;
 								break;
 							case Opcode.OP_CONV_TO_OBJECT:
 								replacement = Opcode.OP_UNKNOWN_238;
-								consumed = 2;
+								consumed    = 2;
 								break;
-							case Opcode.OP_UNKNOWN_47
-								when index + 3 >= _bytecode.Length || _bytecode[index + 3].OpCode != Opcode.OP_UNKNOWN_45:
+							case Opcode.OP_UNKNOWN_47 when index + 3 >= _bytecode.Length || _bytecode[index + 3].OpCode != Opcode.OP_UNKNOWN_45:
 								replacement = Opcode.OP_UNKNOWN_239;
-								consumed = 2;
+								consumed    = 2;
 								break;
 						}
 					}
@@ -551,9 +548,7 @@ public class Script : ScriptVariable
 				}
 
 				replacement = GetOptimizedRegisterMutationOpcode(next.OpCode);
-				if (replacement != null &&
-				    index + 2 < _bytecode.Length &&
-				    _bytecode[index + 2].OpCode == Opcode.OP_INDEX_DEC)
+				if (replacement != null && index + 2 < _bytecode.Length && _bytecode[index + 2].OpCode == Opcode.OP_INDEX_DEC)
 				{
 					op.OpCode = replacement.Value;
 					SetNoOp(index + 1);
@@ -566,15 +561,13 @@ public class Script : ScriptVariable
 			if (op.OpCode == Opcode.OP_UNKNOWN_47 && next.OpCode == Opcode.OP_UNKNOWN_45)
 			{
 				op.OpCode = Opcode.OP_UNKNOWN_242;
-				op.Value = next.Value;
+				op.Value  = next.Value;
 				SetNoOp(index + 1);
 				index++;
 				continue;
 			}
 
-			var assignmentReplacement = next.OpCode == Opcode.OP_ASSIGN
-				? GetOptimizedStackAssignOpcode(op.OpCode)
-				: null;
+			var assignmentReplacement = next.OpCode == Opcode.OP_ASSIGN ? GetOptimizedStackAssignOpcode(op.OpCode) : null;
 
 			if (assignmentReplacement == null)
 				continue;
@@ -587,65 +580,65 @@ public class Script : ScriptVariable
 
 	private void SetNoOp(int index)
 	{
-		_bytecode[index].OpCode = Opcode.OP_NONE;
-		_bytecode[index].Value = 0.0d;
+		_bytecode[index].OpCode       = Opcode.OP_NONE;
+		_bytecode[index].Value        = 0.0d;
 		_bytecode[index].VariableName = null;
 	}
 
 	private static Opcode? GetOptimizedImmediateOpcode(Opcode opcode) =>
 		opcode switch
 		{
-			Opcode.OP_ADD => Opcode.OP_UNKNOWN_200,
-			Opcode.OP_SUB => Opcode.OP_UNKNOWN_201,
-			Opcode.OP_MUL => Opcode.OP_UNKNOWN_202,
-			Opcode.OP_DIV => Opcode.OP_UNKNOWN_203,
-			Opcode.OP_MOD => Opcode.OP_UNKNOWN_204,
-			Opcode.OP_POW => Opcode.OP_UNKNOWN_205,
+			Opcode.OP_ADD        => Opcode.OP_UNKNOWN_200,
+			Opcode.OP_SUB        => Opcode.OP_UNKNOWN_201,
+			Opcode.OP_MUL        => Opcode.OP_UNKNOWN_202,
+			Opcode.OP_DIV        => Opcode.OP_UNKNOWN_203,
+			Opcode.OP_MOD        => Opcode.OP_UNKNOWN_204,
+			Opcode.OP_POW        => Opcode.OP_UNKNOWN_205,
 			Opcode.OP_UNKNOWN_66 => Opcode.OP_UNKNOWN_206,
 			Opcode.OP_UNKNOWN_67 => Opcode.OP_UNKNOWN_207,
-			Opcode.OP_LT => Opcode.OP_UNKNOWN_224,
-			Opcode.OP_GT => Opcode.OP_UNKNOWN_225,
-			Opcode.OP_LTE => Opcode.OP_UNKNOWN_226,
-			Opcode.OP_GTE => Opcode.OP_UNKNOWN_227,
-			_ => null,
+			Opcode.OP_LT         => Opcode.OP_UNKNOWN_224,
+			Opcode.OP_GT         => Opcode.OP_UNKNOWN_225,
+			Opcode.OP_LTE        => Opcode.OP_UNKNOWN_226,
+			Opcode.OP_GTE        => Opcode.OP_UNKNOWN_227,
+			_                    => null,
 		};
 
 	private static Opcode? GetOptimizedStackAssignOpcode(Opcode opcode) =>
 		opcode switch
 		{
-			Opcode.OP_ADD => Opcode.OP_UNKNOWN_208,
-			Opcode.OP_SUB => Opcode.OP_UNKNOWN_209,
-			Opcode.OP_MUL => Opcode.OP_UNKNOWN_210,
-			Opcode.OP_DIV => Opcode.OP_UNKNOWN_211,
-			Opcode.OP_MOD => Opcode.OP_UNKNOWN_212,
-			Opcode.OP_POW => Opcode.OP_UNKNOWN_213,
+			Opcode.OP_ADD        => Opcode.OP_UNKNOWN_208,
+			Opcode.OP_SUB        => Opcode.OP_UNKNOWN_209,
+			Opcode.OP_MUL        => Opcode.OP_UNKNOWN_210,
+			Opcode.OP_DIV        => Opcode.OP_UNKNOWN_211,
+			Opcode.OP_MOD        => Opcode.OP_UNKNOWN_212,
+			Opcode.OP_POW        => Opcode.OP_UNKNOWN_213,
 			Opcode.OP_UNKNOWN_66 => Opcode.OP_UNKNOWN_214,
 			Opcode.OP_UNKNOWN_67 => Opcode.OP_UNKNOWN_215,
-			_ => null,
+			_                    => null,
 		};
 
 	private static Opcode? GetOptimizedImmediateAssignOpcode(Opcode opcode) =>
 		opcode switch
 		{
-			Opcode.OP_ADD => Opcode.OP_UNKNOWN_216,
-			Opcode.OP_SUB => Opcode.OP_UNKNOWN_217,
-			Opcode.OP_MUL => Opcode.OP_UNKNOWN_218,
-			Opcode.OP_DIV => Opcode.OP_UNKNOWN_219,
-			Opcode.OP_MOD => Opcode.OP_UNKNOWN_220,
-			Opcode.OP_POW => Opcode.OP_UNKNOWN_221,
+			Opcode.OP_ADD        => Opcode.OP_UNKNOWN_216,
+			Opcode.OP_SUB        => Opcode.OP_UNKNOWN_217,
+			Opcode.OP_MUL        => Opcode.OP_UNKNOWN_218,
+			Opcode.OP_DIV        => Opcode.OP_UNKNOWN_219,
+			Opcode.OP_MOD        => Opcode.OP_UNKNOWN_220,
+			Opcode.OP_POW        => Opcode.OP_UNKNOWN_221,
 			Opcode.OP_UNKNOWN_66 => Opcode.OP_UNKNOWN_222,
 			Opcode.OP_UNKNOWN_67 => Opcode.OP_UNKNOWN_223,
-			_ => null,
+			_                    => null,
 		};
 
 	private static Opcode? GetOptimizedRegisterOpcode(Opcode opcode) =>
 		opcode switch
 		{
-			Opcode.OP_COPY_LAST_OP => Opcode.OP_UNKNOWN_233,
-			Opcode.OP_CONV_TO_FLOAT => Opcode.OP_UNKNOWN_228,
+			Opcode.OP_COPY_LAST_OP   => Opcode.OP_UNKNOWN_233,
+			Opcode.OP_CONV_TO_FLOAT  => Opcode.OP_UNKNOWN_228,
 			Opcode.OP_CONV_TO_STRING => Opcode.OP_UNKNOWN_229,
 			Opcode.OP_CONV_TO_OBJECT => Opcode.OP_UNKNOWN_230,
-			_ => null,
+			_                        => null,
 		};
 
 	private static Opcode? GetOptimizedRegisterMutationOpcode(Opcode opcode) =>
@@ -653,7 +646,7 @@ public class Script : ScriptVariable
 		{
 			Opcode.OP_INC => Opcode.OP_UNKNOWN_231,
 			Opcode.OP_DEC => Opcode.OP_UNKNOWN_232,
-			_ => null,
+			_             => null,
 		};
 
 	private async Task<IStackEntry> Execute(string functionName, Stack<IStackEntry>? parameters = null, ScriptVariable? receiverOverride = null, bool inheritTempFrame = false)
@@ -670,17 +663,13 @@ public class Script : ScriptVariable
 		}
 	}
 
-	internal Task<IStackEntry> CallEntries(string eventName, IEnumerable<IStackEntry>? args, ScriptVariable? receiverOverride = null) =>
-		Execute(eventName, BuildCallStack(args), receiverOverride);
-
-	private Task<IStackEntry> CallEntries(string eventName, IEnumerable<IStackEntry>? args, ScriptVariable? receiverOverride, bool inheritTempFrame) =>
-		Execute(eventName, BuildCallStack(args), receiverOverride, inheritTempFrame);
+	internal Task<IStackEntry> CallEntries(string eventName, IEnumerable<IStackEntry>? args, ScriptVariable? receiverOverride = null) => Execute(eventName, BuildCallStack(args), receiverOverride);
 
 	internal void InstallObjectEventCatchers(string objectName, Script sourceScript)
 	{
 		if (string.IsNullOrWhiteSpace(objectName)) return;
 
-		var prefix = $"{objectName}.";
+		var prefix           = $"{objectName}.";
 		var normalizedPrefix = prefix.ToLowerInvariant();
 		lock (_eventCatchers)
 		{
@@ -696,13 +685,44 @@ public class Script : ScriptVariable
 			{
 				if (!_eventCatchers.TryGetValue(functionName, out var catchers))
 				{
-					catchers = new();
+					catchers                     = new();
 					_eventCatchers[functionName] = catchers;
 				}
 
-				catchers[sourceScript] = functionName;
+				catchers[sourceScript] = new(functionName);
 			}
 		}
+	}
+
+	internal void CatchEvent(ScriptVariable sender, string eventName, Script sourceScript, string handlerName)
+	{
+		var objectName = sender.Name;
+		if (string.IsNullOrWhiteSpace(objectName) || string.IsNullOrWhiteSpace(eventName)) return;
+
+		if (!eventName.StartsWith("on", StringComparison.OrdinalIgnoreCase))
+			eventName = $"on{eventName}";
+		if (string.IsNullOrWhiteSpace(handlerName))
+			handlerName = eventName;
+
+		var targetEvent = $"{objectName}.{eventName}".ToLowerInvariant();
+		lock (_eventCatchers)
+		{
+			if (!_eventCatchers.TryGetValue(targetEvent, out var catchers))
+			{
+				catchers                    = new();
+				_eventCatchers[targetEvent] = catchers;
+			}
+
+			catchers[sourceScript] = new(handlerName.ToLowerInvariant(), sender);
+		}
+	}
+
+	internal void IgnoreEvent(string objectName, string eventName, Script sourceScript)
+	{
+		if (!eventName.StartsWith("on", StringComparison.OrdinalIgnoreCase)) eventName = $"on{eventName}";
+		lock (_eventCatchers)
+			if (_eventCatchers.TryGetValue($"{objectName}.{eventName}", out var catchers))
+				catchers.Remove(sourceScript);
 	}
 
 	internal void RemoveEventCatchersFrom(Script sourceScript)
@@ -725,17 +745,17 @@ public class Script : ScriptVariable
 		lock (_functionsLock)
 			functionNames = Functions.Keys.ToArray();
 
-		return functionNames
-		       .Where(functionName =>
-		       {
-			       if (!functionName.StartsWith(objectPrefix, StringComparison.OrdinalIgnoreCase)) return false;
-			       var eventName = functionName[objectPrefix.Length..];
-			       return eventName.StartsWith("on", StringComparison.OrdinalIgnoreCase);
-		       })
-		       .ToArray();
+		return functionNames.Where(functionName =>
+			                    {
+				                    if (!functionName.StartsWith(objectPrefix, StringComparison.OrdinalIgnoreCase)) return false;
+				                    var eventName = functionName[objectPrefix.Length..];
+				                    return eventName.StartsWith("on", StringComparison.OrdinalIgnoreCase);
+			                    }
+		                    )
+		                    .ToArray();
 	}
 
-	private bool TryGetEventCatchers(string eventName, out KeyValuePair<Script, string>[] catchers)
+	private bool TryGetEventCatchers(string eventName, out KeyValuePair<Script, EventCatcher>[] catchers)
 	{
 		lock (_eventCatchers)
 		{
@@ -774,27 +794,19 @@ public class Script : ScriptVariable
 	private static IStackEntry? ToCallStackEntry(object variable) =>
 		variable switch
 		{
-			IStackEntry entry => entry,
-			string s => s.ToStackEntry(),
-			int i => i.ToStackEntry(),
-			double d => d.ToStackEntry(),
-			float f => f.ToStackEntry(),
-			decimal dc => dc.ToStackEntry(),
-			string[] sa => sa.ToStackEntry(),
-			int[] ia => ia.ToStackEntry(),
-			bool bo => bo.ToStackEntry(),
-			VariableCollection p => p.ToStackEntry(),
+			IStackEntry entry      => entry,
+			string s               => s.ToStackEntry(),
+			int i                  => i.ToStackEntry(),
+			double d               => d.ToStackEntry(),
+			float f                => f.ToStackEntry(),
+			decimal dc             => dc.ToStackEntry(),
+			string[] sa            => sa.ToStackEntry(),
+			int[] ia               => ia.ToStackEntry(),
+			bool bo                => bo.ToStackEntry(),
+			VariableCollection p   => p.ToStackEntry(),
 			IEnumerable enumerable => enumerable.Cast<object?>().ToStackEntry(),
-			_ => null
+			_                      => null
 		};
-
-	private static bool IsObjectEventName(string eventName)
-	{
-		var dotIndex = eventName.LastIndexOf('.');
-		return dotIndex >= 0 &&
-		       dotIndex + 2 < eventName.Length &&
-		       eventName.AsSpan(dotIndex + 1).StartsWith("on", StringComparison.OrdinalIgnoreCase);
-	}
 
 	private static bool TryGetGs1Event(string eventName, out string canonicalName, out int eventIndex)
 	{
@@ -888,21 +900,64 @@ public class Script : ScriptVariable
 			return Functions.TryGetValue(functionName, out var function) && function.BytecodePosition == 0;
 	}
 
-	private async Task<IStackEntry> CallScriptEvent(
-		string eventName,
-		int? gs1EventIndex,
-		IReadOnlyCollection<IStackEntry>? entries
-	)
+	private static bool IsInitializationEvent(string eventName) => eventName is "created" or "initialized" or "initframe";
+
+	private void CollectInitializationHandlers(string functionName, List<Script> handlers, HashSet<Script> visited)
 	{
-		var functionName = GetEventFunctionName(eventName);
+		if (!visited.Add(this)) return;
+		lock (_functionsLock)
+			if (Functions.ContainsKey(functionName))
+				handlers.Add(this);
+
+		foreach (var className in JoinedClassNames.ToArray())
+			GetJoinedClass(className)?.CollectInitializationHandlers(functionName, handlers, visited);
+	}
+
+	private async Task<IStackEntry> CallInitializationHandlers(string functionName, IReadOnlyCollection<IStackEntry>? entries, bool executedWholeScript, IStackEntry result)
+	{
+		var executed  = new HashSet<Script>(ReferenceEqualityComparer.Instance);
+		var hasResult = executedWholeScript && EventFunctionStartsAtScriptRoot(functionName);
+		if (hasResult) executed.Add(this);
+
+		// Initializers may join more classes. Run each handler once, on the original receiver.
+		while (ExecutionEnabled)
+		{
+			var handlers = new List<Script>();
+			CollectInitializationHandlers(functionName, handlers, new(ReferenceEqualityComparer.Instance));
+			var executedAny = false;
+			foreach (var handler in handlers)
+			{
+				if (!ExecutionEnabled) return result;
+				if (!executed.Add(handler)) continue;
+				executedAny = true;
+				var handlerResult = await handler.CallEntries(functionName, entries, ReferenceEquals(handler, this) ? null : this).ConfigureAwait(false);
+				if (!hasResult)
+				{
+					result    = handlerResult;
+					hasResult = true;
+				}
+			}
+
+			if (!executedAny) break;
+		}
+
+		return result;
+	}
+
+	private async Task<IStackEntry> CallScriptEvent(string eventName, int? gs1EventIndex, IReadOnlyCollection<IStackEntry>? entries)
+	{
+		var functionName     = GetEventFunctionName(eventName);
 		var hasEventFunction = functionName != null;
 		var needsWholeScript = gs1EventIndex == null || HasGs1EventFlag(gs1EventIndex.Value);
 		if (!needsWholeScript && !hasEventFunction) return 0.ToStackEntry();
 
-		IStackEntry result = 0.ToStackEntry();
-		var executedWholeScript = !HasOnlyFunctions;
+		IStackEntry result              = 0.ToStackEntry();
+		var         executedWholeScript = !HasOnlyFunctions;
 		if (executedWholeScript)
 			result = await Machine.ExecuteScript(eventName, BuildCallStack(entries)).ConfigureAwait(false);
+
+		if (IsInitializationEvent(eventName))
+			return await CallInitializationHandlers($"on{eventName}", entries, executedWholeScript, result).ConfigureAwait(false);
 
 		if (hasEventFunction && (!executedWholeScript || !EventFunctionStartsAtScriptRoot(functionName!)))
 			result = await Execute(functionName!, BuildCallStack(entries)).ConfigureAwait(false);
@@ -929,31 +984,29 @@ public class Script : ScriptVariable
 				if (entryCount != entries.Length)
 					Array.Resize(ref entries, entryCount);
 			}
+
 			if (TryGetGs1Event(eventName, out var gs1EventName, out var gs1EventIndex))
 				return await CallScriptEvent(gs1EventName, gs1EventIndex, entries).ConfigureAwait(false);
 
-			if (eventName.Equals("created", StringComparison.OrdinalIgnoreCase) ||
-			    eventName.Equals("oncreated", StringComparison.OrdinalIgnoreCase))
-				return await CallScriptEvent("created", null, entries).ConfigureAwait(false);
+			var normalizedEvent                                                             = eventName.ToLowerInvariant();
+			if (normalizedEvent.StartsWith("on", StringComparison.Ordinal)) normalizedEvent = normalizedEvent[2..];
+			if (IsInitializationEvent(normalizedEvent))
+				return await CallScriptEvent(normalizedEvent, null, entries).ConfigureAwait(false);
 
-			var inheritTempFrame = IsObjectEventName(eventName);
 			bool hasFunction;
 			lock (_functionsLock)
 				hasFunction = Functions.ContainsKey(eventName.ToLowerInvariant());
 
-			if (hasFunction)
-				return await Execute(eventName, BuildCallStack(entries), inheritTempFrame: inheritTempFrame).ConfigureAwait(false);
-
-			if (TryGetEventCatchers(eventName, out var catchers))
+			var hasCatchers = TryGetEventCatchers(eventName, out var catchers);
+			if (hasFunction || hasCatchers)
 			{
-				IStackEntry result = 0.ToStackEntry();
+				IStackEntry result = hasFunction ? await Execute(eventName, BuildCallStack(entries)).ConfigureAwait(false) : 0.ToStackEntry();
 				foreach (var catcher in catchers)
-					result = await catcher.Key.CallEntries(
-						catcher.Value,
-						entries,
-						null,
-						IsObjectEventName(catcher.Value)
-					).ConfigureAwait(false);
+				{
+					if (hasFunction && ReferenceEquals(catcher.Key, this) && catcher.Value.Sender == null) continue;
+					var catcherEntries = catcher.Value.Sender is { } sender ? new[] { sender.ToStackEntry() }.Cast<IStackEntry>().Concat(entries ?? []).ToArray() : entries;
+					result = await catcher.Key.CallEntries(catcher.Value.Handler, catcherEntries).ConfigureAwait(false);
+				}
 
 				return result;
 			}
@@ -962,7 +1015,7 @@ public class Script : ScriptVariable
 
 			var callStack = BuildCallStack(entries);
 
-			return await Execute(eventName, callStack, inheritTempFrame: inheritTempFrame).ConfigureAwait(false);
+			return await Execute(eventName, callStack).ConfigureAwait(false);
 		}
 		catch (Exception e)
 		{
@@ -972,25 +1025,21 @@ public class Script : ScriptVariable
 		return 0.ToStackEntry();
 	}
 
-    public async Task<IStackEntry> CallWithContext(
-        string eventName,
-        ScriptExecutionContext executionContext,
-        params object[]? args
-    )
-    {
-        ArgumentNullException.ThrowIfNull(executionContext);
+	public async Task<IStackEntry> CallWithContext(string eventName, ScriptExecutionContext executionContext, params object[]? args)
+	{
+		ArgumentNullException.ThrowIfNull(executionContext);
 
-        var previousContext = Machine.ScriptExecutionContext;
-        Machine.ScriptExecutionContext = executionContext;
-        try
-        {
-            return await Call(eventName, args).ConfigureAwait(false);
-        }
-        finally
-        {
-            Machine.ScriptExecutionContext = previousContext;
-        }
-    }
+		var previousContext = Machine.ScriptExecutionContext;
+		Machine.ScriptExecutionContext = executionContext;
+		try
+		{
+			return await Call(eventName, args).ConfigureAwait(false);
+		}
+		finally
+		{
+			Machine.ScriptExecutionContext = previousContext;
+		}
+	}
 
 	public Task<IStackEntry> ExecuteScript() => Machine.ExecuteScript(string.Empty);
 
@@ -1034,6 +1083,22 @@ public class Script : ScriptVariable
 		}*/
 	}
 
+	public void SetTimer(ScriptVariable receiver, double value)
+	{
+		if (ReferenceEquals(receiver, this))
+		{
+			SetTimer(value);
+			return;
+		}
+
+		lock (_receiverTimerSync)
+		{
+			_receiverTimers.Remove(receiver);
+			if (value > 0.0001d)
+				_receiverTimers.Add(receiver, DateTime.UtcNow.AddSeconds(value));
+		}
+	}
+
 	public bool TryConsumeDueTimer(DateTime now)
 	{
 		lock (_timerSync)
@@ -1046,9 +1111,79 @@ public class Script : ScriptVariable
 		}
 	}
 
+	public bool ScheduleEvent(ScriptVariable receiver, double delay, string eventName, params IStackEntry[] arguments)
+	{
+		if (!ExecutionEnabled || !double.IsFinite(delay) || delay < 0d || string.IsNullOrWhiteSpace(eventName))
+			return false;
+
+		DateTime dueAt;
+		try
+		{
+			dueAt = DateTime.UtcNow.AddSeconds(delay);
+		}
+		catch (ArgumentOutOfRangeException)
+		{
+			return false;
+		}
+
+		lock (_scheduledEventSync)
+			_scheduledEvents.Add(new(dueAt, eventName, receiver, arguments));
+
+		return true;
+	}
+
+	public void CancelEvents(ScriptVariable receiver, string eventName)
+	{
+		lock (_scheduledEventSync)
+		{
+			foreach (var scheduledEvent in _scheduledEvents)
+				if (ReferenceEquals(scheduledEvent.Receiver, receiver) && scheduledEvent.EventName.Equals(eventName, StringComparison.OrdinalIgnoreCase))
+					scheduledEvent.IsCancelled = true;
+			_scheduledEvents.RemoveAll(scheduledEvent => scheduledEvent.IsCancelled);
+		}
+	}
+
+	public IReadOnlyList<ScriptScheduledEvent> TakeDueScriptScheduledEvents(DateTime now)
+	{
+		if (!ExecutionEnabled) return [];
+
+		ScriptScheduledEvent[] receiverTimers;
+		lock (_receiverTimerSync)
+		{
+			var dueReceivers = _receiverTimers.Where(timer => timer.Value <= now).Select(timer => timer.Key).ToArray();
+			foreach (var receiver in dueReceivers)
+				_receiverTimers.Remove(receiver);
+			receiverTimers = dueReceivers.Select(receiver => new ScriptScheduledEvent(now, "onTimeout", receiver, [])).ToArray();
+		}
+
+		lock (_scheduledEventSync)
+		{
+			var dueEvents = _scheduledEvents.Where(scheduledEvent => !scheduledEvent.IsQueued && scheduledEvent.DueAt <= now).ToArray();
+			// Retain queued events until dispatch so an earlier callback can cancel a later one.
+			foreach (var scheduledEvent in dueEvents)
+				scheduledEvent.IsQueued = true;
+			return receiverTimers.Length == 0 ? dueEvents : receiverTimers.Concat(dueEvents).ToArray();
+		}
+	}
+
+	public Task<IStackEntry> CallScheduledEvent(ScriptScheduledEvent scheduledEvent)
+	{
+		lock (_scheduledEventSync)
+		{
+			if (scheduledEvent.IsCancelled)
+				return Task.FromResult<IStackEntry>(0.ToStackEntry());
+			_scheduledEvents.Remove(scheduledEvent);
+		}
+
+		var eventName       = scheduledEvent.EventName.StartsWith("on", StringComparison.OrdinalIgnoreCase) ? scheduledEvent.EventName : $"on{scheduledEvent.EventName}";
+		var objectEventName = scheduledEvent.Receiver is Script || string.IsNullOrWhiteSpace(scheduledEvent.Receiver.Name) ? eventName : $"{scheduledEvent.Receiver.Name}.{eventName}";
+
+		return Functions.ContainsKey(objectEventName.ToLowerInvariant()) ? CallEntries(objectEventName, scheduledEvent.Arguments, scheduledEvent.Receiver) : CallEntries(eventName, scheduledEvent.Arguments, scheduledEvent.Receiver);
+	}
+
 	private static void DelayedMethodCall(double seconds, Action methodToCall)
 	{
-		Thread.Sleep((int)(seconds * 1500));  // Convert seconds to milliseconds
+		Thread.Sleep((int)(seconds * 1500)); // Convert seconds to milliseconds
 		methodToCall();
 	}
 

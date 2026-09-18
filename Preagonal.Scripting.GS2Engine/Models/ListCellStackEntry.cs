@@ -28,11 +28,7 @@ public sealed class ListCellStackEntry(IList list, int index) : IStackEntry
 
 	private bool IsValid => index >= 0 && index < _list.Count;
 
-	private object? CurrentValue => IsValid
-		? _list[index] is IStackEntry entry
-			? entry.GetValue()
-			: _list[index]
-		: 0.0d;
+	private object? CurrentValue => IsValid ? _list[index] is IStackEntry entry ? entry.GetValue() : _list[index] : 0.0d;
 
 	private IStackEntry CurrentEntry => (CurrentValue ?? 0.0d).ToStackEntry();
 }

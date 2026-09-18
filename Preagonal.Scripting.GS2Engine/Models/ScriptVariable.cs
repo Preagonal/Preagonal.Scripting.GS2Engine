@@ -34,6 +34,14 @@ public class ScriptVariable(string name = "") : VariableCollection, IScriptVaria
 		_joinedClasses.Add(normalizedClassName);
 	}
 
+	public void Leave(string className)
+	{
+		var normalizedClassName = className.Trim().ToLowerInvariant();
+		if (string.IsNullOrEmpty(normalizedClassName) || !_joinedClasses.Contains(normalizedClassName)) return;
+
+		_joinedClasses.Remove(normalizedClassName);
+	}
+
 	protected void SetCallback(string variable, CallbackDelegate setCallback)
 	{
 		if (Properties.TryGetProperty(variable, out var property))
