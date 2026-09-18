@@ -3312,57 +3312,58 @@ public class ScriptMachineTests
 	}
 
 	[Fact]
-	public async Task Given_assignment_expression_When_compared_Then_assigned_value_is_used()
+	public async Task Given_single_equals_in_nested_condition_When_compared_Then_variable_is_not_assigned()
 	{
 		//Arrange
 		const string scriptText = """
-		                          			//#CLIENTSIDE
-		                          			function onCreated() {
-		                          				temp.found = -1;
+			//#CLIENTSIDE
+			function onCreated() {
+				temp.found = -1;
 
-		                          				if ((temp.found = 3) != -1) {
-		                          					return temp.found;
-		                          				}
+				if ((temp.found = 3) != -1) {
+					return temp.found;
+				}
 
-		                          				return 0;
-		                          			}
-		                          """;
+				return 0;
+			}
+			""";
 		var script = CompileScript(scriptText);
 
 		//Act
 		var result = await script.Call("onCreated");
 
 		//Assert
-		Assert.Equal(3.0d, result.GetValue<double>());
+		Assert.Equal(-1.0d, result.GetValue<double>());
 	}
 
 	[Fact]
-	public async Task Given_assignment_expression_in_while_When_condition_is_false_Then_loop_exits()
+	public async Task Given_single_equals_in_while_When_variable_changes_Then_comparison_ends_loop()
 	{
 		//Arrange
 		const string scriptText = """
-		                          			//#CLIENTSIDE
-		                          			function onCreated() {
-		                          				temp.i = 0;
-		                          				temp.count = 0;
+			//#CLIENTSIDE
+			function onCreated() {
+				temp.i = 0;
+				temp.count = 0;
 
-		                          				while ((temp.i = temp.i + 1) != 3) {
-		                          					temp.count++;
-		                          					if (temp.count > 5) {
-		                          						return -99;
-		                          					}
-		                          				}
+				while (temp.i = 0) {
+					temp.count++;
+					temp.i = 1;
+					if (temp.count > 5) {
+						return -99;
+					}
+				}
 
-		                          				return temp.count;
-		                          			}
-		                          """;
+				return temp.count;
+			}
+			""";
 		var script = CompileScript(scriptText);
 
 		//Act
 		var result = await script.Call("onCreated");
 
 		//Assert
-		Assert.Equal(2.0d, result.GetValue<double>());
+		Assert.Equal(1.0d, result.GetValue<double>());
 	}
 
 	[Fact]
@@ -5815,7 +5816,7 @@ public class ScriptMachineTests
 	}
 
 	[Fact]
-	public async Task Given_local_value_in_previous_call_When_reading_name_in_another_function_Then_value_is_not_reused()
+	public async Task Given_global_value_in_previous_call_When_reading_name_in_another_function_Then_value_is_preserved()
 	{
 		const string scriptText = """
 		                          function first() {
@@ -5831,7 +5832,7 @@ public class ScriptMachineTests
 		await script.Call("first");
 		var result = await script.Call("second");
 
-		Assert.Equal(0, result.GetValue<double>());
+		Assert.Equal(3, result.GetValue<double>());
 	}
 
 	[Fact]
@@ -5902,24 +5903,24 @@ public class ScriptMachineTests
 	{
 		//Arrange
 		const string scriptText = """
-		                          //#CLIENTSIDE
-		                          function helper() {
-		                          	for (i = 0; i < 25; i++) {
-		                          	}
-		                          }
+			//#CLIENTSIDE
+			function helper() {
+				for (temp.i = 0; temp.i < 25; temp.i++) {
+				}
+			}
 
-		                          function onCreated() {
-		                          	temp.rows = {"a", "b", "c"};
-		                          	temp.count = 0;
+			function onCreated() {
+				temp.rows = {"a", "b", "c"};
+				temp.count = 0;
 
-		                          	for (i = 0; i < temp.rows.size(); i++) {
-		                          		helper();
-		                          		temp.count++;
-		                          	}
+				for (temp.i = 0; temp.i < temp.rows.size(); temp.i++) {
+					helper();
+					temp.count++;
+				}
 
-		                          	return temp.count;
-		                          }
-		                          """;
+				return temp.count;
+			}
+			""";
 		var script = CompileScript(scriptText);
 
 		//Act

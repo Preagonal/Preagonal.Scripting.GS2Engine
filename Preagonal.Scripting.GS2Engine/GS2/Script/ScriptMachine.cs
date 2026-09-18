@@ -1106,13 +1106,15 @@ public class ScriptMachine
 					stack.Push(vecyVal.ToStackEntry());
 					break;
 				case Opcode.OP_OBJ_INDICES:
+					var indicesNeedle = GetEntry(PopOrZero(), returnStackEntryIfNotFound: true).GetValue();
 					var indicesTarget = GetEntry(PopOrZero(), returnStackEntryIfNotFound: true);
 					var indicesValues = GetArrayValues(indicesTarget.GetValue());
 					var indices       = new List<object?>();
 					if (indicesValues != null)
 					{
 						for (var i = 0; i < indicesValues.Count; i++)
-							indices.Add((double)i);
+							if (ScriptValuesEqual(indicesValues[i], indicesNeedle))
+								indices.Add((double)i);
 					}
 
 					stack.Push(indices.ToStackEntry());
@@ -1228,9 +1230,9 @@ public class ScriptMachine
 					SetScriptArrayCell2(multiArrayAssignTarget, multiArrayAssignX, multiArrayAssignY, multiArrayValue);
 					break;
 				case Opcode.OP_OBJ_SUBARRAY:
+					var subArrayLength = ToScriptInt(GetEntry(stack.Pop()).GetValue<double>());
+					var subArrayStart  = ToScriptInt(GetEntry(stack.Pop()).GetValue<double>());
 					var subArrayTarget = GetEntry(stack.Pop(), returnStackEntryIfNotFound: true).GetValue();
-					var subArrayStart  = stack.Count > 0 ? ToScriptInt(GetEntry(stack.Pop()).GetValue<double>()) : 0;
-					var subArrayLength = stack.Count > 0 ? ToScriptInt(GetEntry(stack.Pop()).GetValue<double>()) : -1;
 					stack.Push(GetScriptSubArray(subArrayTarget, subArrayStart, subArrayLength).ToStackEntry());
 					break;
 				case Opcode.OP_OBJ_ADDSTRING:

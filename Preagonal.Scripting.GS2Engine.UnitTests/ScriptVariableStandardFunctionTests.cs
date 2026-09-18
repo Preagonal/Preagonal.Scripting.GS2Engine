@@ -219,6 +219,16 @@ public sealed class ScriptVariableStandardFunctionTests
 	}
 
 	[Fact]
+	public async Task Call_Given_repeated_strings_When_indices_is_called_Then_returns_only_exact_matches()
+	{
+		var script = CompileScript("temp.values = {\"One\", \"one\", \"One\"}; return temp.values.indices(\"One\");");
+
+		var result = await script.Call("onCreated");
+
+		Assert.Equal([0.0d, 2.0d], result.GetValue<List<object?>>());
+	}
+
+	[Fact]
 	public async Task Call_Given_padded_string_When_trim_is_called_Then_removes_outer_whitespace()
 	{
 		//Arrange
@@ -463,6 +473,32 @@ public sealed class ScriptVariableStandardFunctionTests
 
 		//Assert
 		Assert.Equal([2.0d, 3.0d], result.GetValue<List<object?>>());
+	}
+
+	[Fact]
+	public async Task Call_Given_subarray_When_modifying_slice_Then_source_array_is_unchanged()
+	{
+		var script = CompileScript("temp.values = {1, 2, 3}; temp.slice = temp.values.subarray(1, 1); temp.slice[0] = 9; return temp.values;");
+
+		var result = await script.Call("onCreated");
+
+		Assert.Equal([1.0d, 2.0d, 3.0d], result.GetValue<List<object?>>());
+	}
+
+	[Theory]
+	[InlineData("0, 0", new double[] { })]
+	[InlineData("-1, 2", new double[] { 1, 2 })]
+	[InlineData("1, -1", new double[] { 2, 3 })]
+	[InlineData("1, 20", new double[] { 2, 3 })]
+	[InlineData("3, 1", new double[] { })]
+	[InlineData("20, 1", new double[] { })]
+	public async Task Call_Given_slice_bounds_When_subarray_is_called_Then_clamps_to_array(string arguments, double[] expected)
+	{
+		var script = CompileScript($"temp.values = {{1, 2, 3}}; return temp.values.subarray({arguments});");
+
+		var result = await script.Call("onCreated");
+
+		Assert.Equal(expected.Cast<object?>(), result.GetValue<List<object?>>());
 	}
 
 	[Fact]
