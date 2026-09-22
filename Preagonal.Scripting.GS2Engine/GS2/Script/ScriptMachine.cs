@@ -729,16 +729,20 @@ public class ScriptMachine
 							{
 								var funcParamVal  = callStack.Pop();
 								var funcParamName = (funcParam.GetValue() ?? "").ToString()?.ToLowerInvariant() ?? string.Empty;
-								Tools.DebugLine($"[SCRIPT] param {funcParamName}={DescribeEntry(funcParamVal)}");
+								// Resolve variable references to their values before binding.
+								// Without this, passing a variable (e.g. setcolor(color)) binds
+								// the Variable("color") reference instead of its value (16711680).
+								var resolvedVal = GetEntry(funcParamVal, returnStackEntryIfNotFound: true) ?? 0.ToStackEntry();
+								Tools.DebugLine($"[SCRIPT] param {funcParamName}={DescribeEntry(resolvedVal)}");
 								if (funcParam.Type == Variable && funcParam.GetParent() is VariableCollection parentCollection)
 								{
 									if (ReferenceEquals(parentCollection, _tempVariables))
 										_tempAliases.Add(funcParamName);
-									parentCollection.AddOrUpdate(funcParamName, funcParamVal ?? 0.ToStackEntry());
+									parentCollection.AddOrUpdate(funcParamName, resolvedVal);
 								}
 								else
 								{
-									_localVariables.AddOrUpdate(funcParamName, funcParamVal ?? 0.ToStackEntry());
+									_localVariables.AddOrUpdate(funcParamName, resolvedVal);
 								}
 							}
 						}

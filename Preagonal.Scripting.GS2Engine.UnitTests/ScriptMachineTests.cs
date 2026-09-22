@@ -7405,6 +7405,167 @@ public class ScriptMachineTests
 		Assert.Equal("234", _receivedStrings[0]);
 	}
 
+	[Fact]
+	public async Task When_bitwise_and_Then_correct_result()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText = """
+							//#CLIENTSIDE
+							function onCreated() {
+								echo(1024 & 8191);
+							}
+							""";
+		var script = CompileScript(scriptText);
+
+		//Act
+		_ = await script.Call("onCreated");
+
+		//Assert
+		Assert.Equal("1024", _receivedStrings[0]);
+	}
+
+	[Fact]
+	public async Task When_bitwise_or_Then_correct_result()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText = """
+							//#CLIENTSIDE
+							function onCreated() {
+								echo(1024 | 3);
+							}
+							""";
+		var script = CompileScript(scriptText);
+
+		//Act
+		_ = await script.Call("onCreated");
+
+		//Assert
+		Assert.Equal("1027", _receivedStrings[0]);
+	}
+
+	[Fact]
+	public async Task When_bitwise_xor_Then_correct_result()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText = """
+							//#CLIENTSIDE
+							function onCreated() {
+								echo(1024 ^ 3);
+							}
+							""";
+		var script = CompileScript(scriptText);
+
+		//Act
+		_ = await script.Call("onCreated");
+
+		//Assert
+		Assert.Equal("1027", _receivedStrings[0]);
+	}
+
+	[Fact]
+	public async Task When_shift_operators_Then_correct_results()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText = """
+							//#CLIENTSIDE
+							function onCreated() {
+								echo(16711680 >> 16);
+								echo(1 << 8);
+							}
+							""";
+		var script = CompileScript(scriptText);
+
+		//Act
+		_ = await script.Call("onCreated");
+
+		//Assert
+		Assert.Equal("255", _receivedStrings[0]);
+		Assert.Equal("256", _receivedStrings[1]);
+	}
+
+	[Fact]
+	public async Task When_rgb_unpack_Then_correct_channels()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText = """
+							//#CLIENTSIDE
+							function onCreated() {
+								r = ((16711680 >> 16) & 255) / 255;
+								echo(r);
+							}
+							""";
+		var script = CompileScript(scriptText);
+
+		//Act
+		_ = await script.Call("onCreated");
+
+		//Assert
+		Assert.Equal("1", _receivedStrings[0]);
+	}
+
+	[Fact]
+	public async Task When_nested_array_write_read_Then_value_roundtrips()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText = """
+							//#CLIENTSIDE
+							function onCreated() {
+								mem = new[16];
+								mem[0] = new[8192];
+								inner = mem[0];
+								inner[1024] = 42;
+								echo(mem[0][1024]);
+							}
+							""";
+		var script = CompileScript(scriptText);
+
+		//Act
+		_ = await script.Call("onCreated");
+
+		//Assert
+		Assert.Equal("42", _receivedStrings[0]);
+	}
+
+	[Fact]
+	public async Task When_function_receives_variable_argument_Then_gets_value_not_name()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText = """
+							//#CLIENTSIDE
+							function onCreated() {
+								testParams();
+							}
+							function testParams() {
+								c = 16711680;
+								setcolor(c);
+							}
+							function setcolor(val) {
+								echo(val);
+							}
+							""";
+		var script = CompileScript(scriptText);
+
+		//Act
+		_ = await script.Call("onCreated");
+
+		//Assert
+		Assert.Equal("16711680", _receivedStrings[0]);
+	}
+
 	private sealed class TestEventGuiControl(string id, Script script) : GuiControl(id, script)
 	{
 		public void TriggerAction() => CallAction();
