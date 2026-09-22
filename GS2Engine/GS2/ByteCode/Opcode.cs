@@ -65,6 +65,8 @@ public enum Opcode
 
 	OP_BWO = 76, //  PUSH (S(1) | S(0))
 	OP_BWA = 77, //  PUSH (S(1) & S(0))
+	OP_BITXOR = 78, //  PUSH (S(1) ^ S(0))
+	OP_BITINVERT = 79, //  PUSH (~S(0))
 
 	OP_IN_RANGE  = 80,
 	OP_IN_OBJ    = 81,
@@ -88,6 +90,8 @@ public enum Opcode
 	OP_VECY                  = 98,
 	OP_OBJ_INDICES           = 99,
 	OP_OBJ_LINK              = 100,
+	OP_SHIFTLEFT             = 101, //  PUSH (S(1) << S(0))
+	OP_SHIFTRIGHT            = 102, //  PUSH (S(1) >> S(0))
 	OP_CHAR                  = 103,
 	OP_OBJ_TRIM              = 110,
 	OP_OBJ_LENGTH            = 111,

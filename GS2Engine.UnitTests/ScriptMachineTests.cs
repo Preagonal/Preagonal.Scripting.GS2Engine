@@ -305,4 +305,201 @@ public class ScriptMachineTests
 		Assert.Equal("bmb_pics1.png", _receivedStrings[147]);
 	}
 
+	[Fact]
+	public void When_bitwise_and_Then_returns_correct_result()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText =
+			"""
+						//#CLIENTSIDE
+						function onCreated() {
+							echo(1024 & 8191);
+						}
+			""";
+		var script = InitializeScript(scriptText);
+
+		//Act
+		_ = script.Call("onCreated");
+
+		//Assert
+		Assert.Equal(1, _calledTimes);
+		Assert.Equal("1024", _receivedStrings[0]);
+	}
+
+	[Fact]
+	public void When_bitwise_or_Then_returns_correct_result()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText =
+			"""
+						//#CLIENTSIDE
+						function onCreated() {
+							echo(1024 | 3);
+						}
+			""";
+		var script = InitializeScript(scriptText);
+
+		//Act
+		_ = script.Call("onCreated");
+
+		//Assert
+		Assert.Equal(1, _calledTimes);
+		Assert.Equal("1027", _receivedStrings[0]);
+	}
+
+	[Fact]
+	public void When_bitwise_xor_Then_returns_correct_result()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText =
+			"""
+						//#CLIENTSIDE
+						function onCreated() {
+							echo(1024 xor 3);
+						}
+			""";
+		var script = InitializeScript(scriptText);
+
+		//Act
+		_ = script.Call("onCreated");
+
+		//Assert
+		Assert.Equal(1, _calledTimes);
+		Assert.Equal("1027", _receivedStrings[0]);
+	}
+
+	[Fact]
+	public void When_shift_right_Then_returns_correct_result()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText =
+			"""
+						//#CLIENTSIDE
+						function onCreated() {
+							echo(16711680 >> 16);
+						}
+			""";
+		var script = InitializeScript(scriptText);
+
+		//Act
+		_ = script.Call("onCreated");
+
+		//Assert
+		Assert.Equal(1, _calledTimes);
+		Assert.Equal("255", _receivedStrings[0]);
+	}
+
+	[Fact]
+	public void When_shift_left_Then_returns_correct_result()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText =
+			"""
+						//#CLIENTSIDE
+						function onCreated() {
+							echo(1 << 8);
+						}
+			""";
+		var script = InitializeScript(scriptText);
+
+		//Act
+		_ = script.Call("onCreated");
+
+		//Assert
+		Assert.Equal(1, _calledTimes);
+		Assert.Equal("256", _receivedStrings[0]);
+	}
+
+	[Fact]
+	public void When_color_unpack_Then_rgb_components_correct()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText =
+			"""
+						//#CLIENTSIDE
+						function onCreated() {
+							color = 16711680;
+							echo(((color >> 16) & 255) / 255);
+							echo(((color >> 8) & 255) / 255);
+							echo((color & 255) / 255);
+						}
+			""";
+		var script = InitializeScript(scriptText);
+
+		//Act
+		_ = script.Call("onCreated");
+
+		//Assert
+		Assert.Equal(3, _calledTimes);
+		Assert.Equal("1", _receivedStrings[0]);
+		Assert.Equal("0", _receivedStrings[1]);
+		Assert.Equal("0", _receivedStrings[2]);
+	}
+
+	[Fact]
+	public void When_nested_array_assign_Then_inner_array_readable()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText =
+			"""
+						//#CLIENTSIDE
+						function onCreated() {
+							mem = new[16];
+							mem[0] = new[8192];
+							inner = mem[0];
+							v = inner[1024];
+							echo(v);
+						}
+			""";
+		var script = InitializeScript(scriptText);
+
+		//Act
+		_ = script.Call("onCreated");
+
+		//Assert
+		Assert.Equal(1, _calledTimes);
+		Assert.Equal("0", _receivedStrings[0]);
+	}
+
+	[Fact]
+	public void When_nested_array_write_read_Then_value_roundtrips()
+	{
+		//Arrange
+		_receivedStrings.Clear();
+		_calledTimes = 0;
+		const string scriptText =
+			"""
+						//#CLIENTSIDE
+						function onCreated() {
+							mem = new[16];
+							mem[0] = new[8192];
+							inner = mem[0];
+							inner[1024] = 42;
+							echo(mem[0][1024]);
+						}
+			""";
+		var script = InitializeScript(scriptText);
+
+		//Act
+		_ = script.Call("onCreated");
+
+		//Assert
+		Assert.Equal(1, _calledTimes);
+		Assert.Equal("42", _receivedStrings[0]);
+	}
+
 }

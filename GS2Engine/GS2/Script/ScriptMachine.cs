@@ -593,8 +593,33 @@ public class ScriptMachine
 					stack.Push((gteB >= gteA).ToStackEntry());
 					break;
 				case Opcode.OP_BWO:
+					var bwoA = GetEntryValueAsInt(stack.Pop());
+					var bwoB = GetEntryValueAsInt(stack.Pop());
+					stack.Push((bwoB | bwoA).ToStackEntry());
 					break;
 				case Opcode.OP_BWA:
+					var bwaA = GetEntryValueAsInt(stack.Pop());
+					var bwaB = GetEntryValueAsInt(stack.Pop());
+					stack.Push((bwaB & bwaA).ToStackEntry());
+					break;
+				case Opcode.OP_BITXOR:
+					var bxorA = GetEntryValueAsInt(stack.Pop());
+					var bxorB = GetEntryValueAsInt(stack.Pop());
+					stack.Push((bxorB ^ bxorA).ToStackEntry());
+					break;
+				case Opcode.OP_BITINVERT:
+					var binvA = GetEntryValueAsInt(stack.Pop());
+					stack.Push((~binvA).ToStackEntry());
+					break;
+				case Opcode.OP_SHIFTLEFT:
+					var shlA = GetEntryValueAsInt(stack.Pop());
+					var shlB = GetEntryValueAsInt(stack.Pop());
+					stack.Push((shlB << shlA).ToStackEntry());
+					break;
+				case Opcode.OP_SHIFTRIGHT:
+					var shrA = GetEntryValueAsInt(stack.Pop());
+					var shrB = GetEntryValueAsInt(stack.Pop());
+					stack.Push((shrB >> shrA).ToStackEntry());
 					break;
 				case Opcode.OP_IN_RANGE:
 					break;
@@ -736,9 +761,27 @@ public class ScriptMachine
 					try
 					{
 						var arrAssVal   = GetEntry(stack.Pop());
-						var arrAssIndex = GetEntry(stack.Pop()).GetValue<double>();
-						var arrAssObj   = GetEntry(stack.Pop()).GetValue<VariableCollection>();
-						arrAssObj?.AddOrUpdate(((int)arrAssIndex).ToString(), arrAssVal);
+						var arrAssIndex = (int)GetEntry(stack.Pop()).GetValue<double>();
+						var arrAssObj   = GetEntry(stack.Pop()).GetValue();
+						if (arrAssObj is VariableCollection arrAssVc)
+						{
+							arrAssVc.AddOrUpdate(arrAssIndex.ToString(), arrAssVal);
+						}
+						else if (arrAssObj is List<object> arrAssLo && arrAssIndex >= 0)
+						{
+							while (arrAssLo.Count <= arrAssIndex) arrAssLo.Add(0d);
+							arrAssLo[arrAssIndex] = arrAssVal.GetValue() ?? 0d;
+						}
+						else if (arrAssObj is List<string> arrAssLs && arrAssIndex >= 0)
+						{
+							while (arrAssLs.Count <= arrAssIndex) arrAssLs.Add(string.Empty);
+							arrAssLs[arrAssIndex] = arrAssVal.GetValue()?.ToString() ?? string.Empty;
+						}
+						else if (arrAssObj is List<int> arrAssLi && arrAssIndex >= 0)
+						{
+							while (arrAssLi.Count <= arrAssIndex) arrAssLi.Add(0);
+							arrAssLi[arrAssIndex] = (int)arrAssVal.GetValue<double>();
+						}
 					}
 					catch (Exception e)
 					{
@@ -902,6 +945,22 @@ public class ScriptMachine
 
 	private T? GetEntryValue<T>(IStackEntry stackEntry, StackEntryType? overrideStackType = null, bool returnStackEntryIfNotFound = false) =>
 		(T?)GetEntry(stackEntry, overrideStackType, returnStackEntryIfNotFound).GetValue();
+
+	private int GetEntryValueAsInt(IStackEntry stackEntry)
+	{
+		var val = GetEntry(stackEntry).GetValue();
+		return val switch
+		{
+			double d  => (int)d,
+			float f   => (int)f,
+			int i     => i,
+			long l    => (int)l,
+			TString s => int.TryParse(s.ToString(), out var parsed) ? parsed : 0,
+			string s  => int.TryParse(s, out var parsed2) ? parsed2 : 0,
+			bool b    => b ? 1 : 0,
+			_         => 0,
+		};
+	}
 
 	public void Reset()
 	{
