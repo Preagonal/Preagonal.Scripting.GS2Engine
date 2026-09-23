@@ -8,6 +8,43 @@ namespace Preagonal.Scripting.GS2Engine.UnitTests;
 public class ScriptTimeoutTests
 {
 	[Fact]
+	public void Recurring_fifty_millisecond_timer_runs_twenty_times_across_sixty_frames()
+	{
+		var manager = new ScriptManager(new FakeLogger<ScriptManager>());
+		var script  = new Script(manager, ScriptType.Weapon);
+		var start   = DateTime.UtcNow.AddMinutes(-1);
+		manager.BeginFrame(start);
+		script.SetTimer(0.05);
+		var ticks = 0;
+		for (var frame = 1; frame <= 60; frame++)
+		{
+			var now = start.AddSeconds(frame / 60d);
+			manager.BeginFrame(now);
+			if (!script.TryConsumeDueTimer(now)) continue;
+			ticks++;
+			script.SetTimer(0.05);
+		}
+
+		Assert.Equal(20, ticks);
+	}
+
+	[Fact]
+	public void Timer_and_scheduled_event_deadlines_use_the_shared_frame_time()
+	{
+		var manager  = new ScriptManager(new FakeLogger<ScriptManager>());
+		var script   = new Script(manager, ScriptType.Weapon);
+		var receiver = new ScriptVariable("receiver");
+		var frame    = DateTime.UtcNow.AddMinutes(-1);
+		manager.BeginFrame(frame);
+		script.SetTimer(0.05);
+		script.SetTimer(receiver, 0.05);
+		script.ScheduleEvent(receiver, 0.05, "Ready");
+		Assert.Equal(frame.AddSeconds(0.05), script.Timer);
+		Assert.Empty(script.TakeDueScriptScheduledEvents(frame.AddSeconds(0.04)));
+		Assert.Equal(2, script.TakeDueScriptScheduledEvents(frame.AddSeconds(0.05)).Count);
+	}
+
+	[Fact]
 	public void Given_due_timer_When_timer_is_consumed_Then_timer_is_cleared()
 	{
 		var script = CreateScript();

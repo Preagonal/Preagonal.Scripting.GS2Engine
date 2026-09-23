@@ -43,6 +43,7 @@ public static class StackEntryExtensions
 			case TypeCode.Char:
 			case TypeCode.Decimal:
 			case TypeCode.Double:
+			case TypeCode.Single:
 			case TypeCode.Int16:
 			case TypeCode.Int32:
 			case TypeCode.Int64:
@@ -62,7 +63,7 @@ public static class StackEntryExtensions
 				if (stackType == typeof(Version))
 					return StackEntryType.Array;
 
-				if (stackType == typeof(Script.Command))
+				if (stackType == typeof(ScriptCommand))
 					return StackEntryType.Function;
 
 				if (stackType is { IsGenericType: true } && stackType.GetGenericTypeDefinition() == typeof(ScriptProperty<>))
@@ -72,14 +73,11 @@ public static class StackEntryExtensions
 				if (stackType != null && typeof(Script).IsAssignableFrom(stackType))
 					return StackEntryType.Script;
 
-				if (stackType != null && stackType.GetInterfaces().Any(x => x.Name.Equals("IGuiControl", StringComparison.CurrentCultureIgnoreCase)))
+				if (stackObject is IGuiControl)
 					return StackEntryType.Array;
 
 				if (stackType != null && (stackType == typeof(VariableCollection) || stackType.IsSubclassOf(typeof(VariableCollection))))
 					return StackEntryType.Array;
-
-				if (stackObject is float)
-					return StackEntryType.Number;
 
 				if (stackType is { IsGenericType: true } && stackType.GetGenericTypeDefinition().IsAssignableFrom(typeof(List<>)))
 					return StackEntryType.Array;

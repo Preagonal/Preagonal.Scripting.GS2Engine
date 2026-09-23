@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using Preagonal.Scripting.GS2Engine.GS2.Script;
+using Preagonal.Scripting.GS2Engine.Models;
 
 namespace Preagonal.Scripting.GS2Engine;
 
@@ -27,13 +28,14 @@ public static class Tools
 	{
 		return value switch
 		{
-			null                                                    => string.Empty,
-			TString t                                               => t.ToString(),
-			Script.Command { Target: BoundScriptFunction function } => function.Name,
-			bool b                                                  => b ? "1" : "0",
-			IEnumerable enumerable and not string                   => string.Join(",", enumerable.Cast<object?>().Select(ToScriptString)),
-			IFormattable f                                          => f.ToString(null, ScriptCulture),
-			_                                                       => value.ToString() ?? string.Empty,
+			null                                                   => string.Empty,
+			TString t                                              => t.ToString(),
+			ScriptVariable variable                                => variable.Name,
+			ScriptCommand { Target: BoundScriptFunction function } => function.Name,
+			bool b                                                 => b ? "1" : "0",
+			IEnumerable enumerable and not string                  => string.Join(",", enumerable.Cast<object?>().Select(ToScriptString)),
+			IFormattable f                                         => f.ToString(null, ScriptCulture),
+			_                                                      => value.ToString() ?? string.Empty,
 		};
 	}
 
@@ -112,10 +114,6 @@ public static class Tools
 			};
 		return null;
 	}
-
-	#endregion
-
-	#region ToInteger
 
 	#endregion
 

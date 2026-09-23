@@ -16,7 +16,7 @@ public sealed class ScriptPropertyMetadataTests
 		var actual = function.Parameters;
 
 		//Assert
-		Assert.Equal([new FunctionParameterDefinition("delay", typeof(double))], actual);
+		Assert.Equal([new("delay", typeof(double))], actual);
 	}
 
 	[Fact]

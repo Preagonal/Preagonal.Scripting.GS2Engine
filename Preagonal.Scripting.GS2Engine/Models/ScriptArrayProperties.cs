@@ -16,9 +16,9 @@ public sealed class ScriptArrayProperties : ScriptProperties<IList>
 			this,
 			new()
 			{
-				{ "addarray", "Appends every value from another array.", AddArray, [new("values", typeof(object[]))], typeof(void) },
+				{ "addarray", "Appends the elements of another array.", AddArray, [new("values", typeof(object[]))], typeof(void) },
 				{ "indices", "Returns every index containing the specified value.", Indices, [new("value", typeof(object))] },
-				{ "insertarray", "Inserts every value from another array at the specified index.", InsertArray, [new("index", typeof(int)), new("values", typeof(object[]))], typeof(void) },
+				{ "insertarray", "Inserts another array's elements at the supplied index.", InsertArray, [new("index", typeof(int)), new("values", typeof(object[]))], typeof(void) },
 			}
 		);
 

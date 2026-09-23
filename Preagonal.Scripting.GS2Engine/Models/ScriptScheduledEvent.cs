@@ -1,5 +1,4 @@
 using System;
-using Preagonal.Scripting.GS2Engine.GS2.Script;
 
 namespace Preagonal.Scripting.GS2Engine.Models;
 

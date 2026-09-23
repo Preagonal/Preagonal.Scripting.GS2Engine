@@ -9,17 +9,17 @@ public class GuiAnimationProperties : ScriptProperties<GuiAnimation>
 		var properties = new PropertyDefinitions<GuiAnimation>
 		{
 			{ "currenttime", "The animation's current playback time.", animation => animation.CurrentTime, (animation, value) => animation.CurrentTime = value },
-			{ "alpha", "The alpha value applied by the animation.", animation => animation.Alpha, (animation, value) => animation.Alpha = value },
-			{ "amplitude", "The animation's movement amplitude.", animation => animation.Amplitude, (animation, value) => animation.Amplitude = value },
-			{ "bounds", "The bounds used by the animation.", animation => animation.Bounds, (animation, value) => animation.Bounds = value },
-			{ "delay", "The delay before the animation starts.", animation => animation.Delay, (animation, value) => animation.Delay = value },
-			{ "duration", "The animation's duration.", animation => animation.Duration, (animation, value) => animation.Duration = value },
-			{ "interval", "The animation's update interval.", animation => animation.Interval, (animation, value) => animation.Interval = value },
-			{ "rotation", "The rotation applied by the animation.", animation => animation.Rotation, (animation, value) => animation.Rotation = value },
-			{ "sound", "The sound played by the animation.", animation => animation.Sound, (animation, value) => animation.Sound = value },
-			{ "tabfirstonshow", "Whether the first control receives focus when shown.", animation => animation.TabFirstOnShow, (animation, value) => animation.TabFirstOnShow = value },
-			{ "timing", "The timing mode used by the animation.", animation => animation.Timing, (animation, value) => animation.Timing = value },
-			{ "transition", "The transition mode used by the animation.", animation => animation.Transition, (animation, value) => animation.Transition = value }
+			{ "alpha", "The target opacity for a transform transition.", animation => animation.Alpha, (animation, value) => animation.Alpha = value },
+			{ "amplitude", "The movement or zoom amplitude for moveupdown, moveleftright, and zoominout.", animation => animation.Amplitude, (animation, value) => animation.Amplitude = value },
+			{ "bounds", "The target {x,y,width,height} rectangle for a transform transition.", animation => animation.Bounds, (animation, value) => animation.Bounds = value },
+			{ "delay", "The delay in seconds before animation playback begins.", animation => animation.Delay, (animation, value) => animation.Delay = value },
+			{ "duration", "The animation's running time in seconds.", animation => animation.Duration, (animation, value) => animation.Duration = value },
+			{ "interval", "The cycle interval for moveupdown, moveleftright, and zoominout.", animation => animation.Interval, (animation, value) => animation.Interval = value },
+			{ "rotation", "The target rotation for a transform transition.", animation => animation.Rotation, (animation, value) => animation.Rotation = value },
+			{ "sound", "The sound to play when the animation begins.", animation => animation.Sound, (animation, value) => animation.Sound = value },
+			{ "tabfirstonshow", "Requests tab focus after showing the control; enabled by default.", animation => animation.TabFirstOnShow, (animation, value) => animation.TabFirstOnShow = value },
+			{ "timing", "The timing curve: linear or sinus, with sinus easing the transition.", animation => animation.Timing, (animation, value) => animation.Timing = value },
+			{ "transition", "The transition name, selecting a transform, fade, directional move or flip, zoom, grow, shrink, or rotation animation.", animation => animation.Transition, (animation, value) => animation.Transition = value }
 		};
 
 		AddProperties(this, properties);

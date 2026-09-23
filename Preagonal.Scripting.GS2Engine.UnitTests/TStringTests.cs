@@ -68,7 +68,7 @@ public class TStringTests
 	[Fact]
 	public void Given_unchanged_value_When_converting_to_string_Then_reuses_decoded_value()
 	{
-		TString value = new byte[] { (byte)'a', (byte)'b', (byte)'c' };
+		TString value = new[] { (byte)'a', (byte)'b', (byte)'c' };
 		var     first = value.ToString();
 
 		var second = value.ToString();

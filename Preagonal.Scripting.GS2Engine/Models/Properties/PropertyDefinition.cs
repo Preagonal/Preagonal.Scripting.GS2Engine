@@ -64,7 +64,7 @@ public readonly struct PropertyDefinition<TInstance, TRet>(
 			return (TRet)(object)(int)ToScriptDouble(value);
 
 		if (targetType == typeof(string[]))
-			return (TRet)(object)Tools.ToScriptString(value).Split(',', StringSplitOptions.None);
+			return (TRet)(object)Tools.ToScriptString(value).Split(',');
 
 		if (targetType.IsArray && value is Array array && targetType.GetElementType() is { } elementType)
 		{

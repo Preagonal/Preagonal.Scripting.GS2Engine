@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using Preagonal.Scripting.GS2Engine.Extensions;
 using Preagonal.Scripting.GS2Engine.GS2.Script;
@@ -32,6 +32,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 	private                       int                  _width;
 	private                       int                  _x;
 	private                       int                  _y;
+	private                       bool                 _disposed;
 	[ThreadStatic] private static HashSet<GuiControl>? _drawStack;
 	protected event Action<string>?                    TextChanged;
 
@@ -239,7 +240,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 
 	internal void SetVisible(bool value, bool stopAnimations)
 	{
-		if (_visible == value) return;
+		if (_disposed || _visible == value) return;
 
 		var wasActuallyVisible = IsActuallyVisible();
 		_visible = value;
@@ -294,9 +295,15 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		set => SetPosition(value);
 	}
 
-	public List<IGuiControl?> Controls { get; } = [];
+	public List<IGuiControl?> Controls   { get; } = [];
+	public bool               IsDisposed => _disposed;
 
-	public void Dispose() => Active = false;
+	public virtual void Dispose()
+	{
+		_disposed = true;
+		Active    = false;
+		_visible  = false;
+	}
 
 	public void SetSize(int width, int height) => Resize(X, Y, width, height);
 
@@ -308,6 +315,8 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 
 	public void Destroy()
 	{
+		if (_disposed) return;
+		Dispose();
 		ClearFirstResponders();
 
 		IGuiControl?[] controls;
@@ -322,13 +331,11 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		Script?.ScriptManager.UnregisterGlobalObject(Id, this);
 		if (Parent is GuiControl parent)
 			parent.RemoveControl(this);
-
-		Dispose();
 	}
 
-	public void AddControl(IGuiControl? obj)
+	public virtual void AddControl(IGuiControl? obj)
 	{
-		if (obj == null) return;
+		if (_disposed || obj == null || obj is GuiControl { IsDisposed: true }) return;
 		if (obj is GuiControl child)
 		{
 			if (!child.CanUseParent(this))
@@ -351,7 +358,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 			guiControl.Awaken();
 	}
 
-	public void RemoveControl(IGuiControl? obj)
+	public virtual void RemoveControl(IGuiControl? obj)
 	{
 		if (obj == null) return;
 
@@ -425,7 +432,8 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		return Controls.OfType<GuiControl>().LastOrDefault(control => control.Visible && control.Active && parts[0] >= control.X && parts[1] >= control.Y && parts[0] < control.X + control.Width && parts[1] < control.Y + control.Height);
 	}
 
-	public IGuiControl? GetParent() => Parent;
+	public         IGuiControl?         GetParent()        => Parent;
+	public virtual (double X, double Y) ChildContentOffset => (0, 0);
 
 	public virtual string GlobalToLocalCoord(string position)
 	{
@@ -704,7 +712,8 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 
 	protected void InvokeEvent(string eventName, params object[] args)
 	{
-		Script?.Call($"{Id}.{eventName}", args).ConfigureAwait(false).GetAwaiter().GetResult();
+		if (!_disposed && Script is { ExecutionEnabled: true })
+			Script.QueueGuiEvent(this, $"{Id}.{eventName}", args);
 	}
 
 	public void InstallEventCatchers(Script sourceScript) => Script?.InstallObjectEventCatchers(Id, sourceScript);
@@ -735,7 +744,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 				if (control is GuiControl guiControl)
 				{
 					if (drawStack.Contains(guiControl)) continue;
-					if (guiControl.Visible)
+					if (!guiControl.IsDisposed && ReferenceEquals(guiControl.Parent, this) && guiControl.Visible)
 						guiControl.Draw();
 				}
 				else
@@ -1028,8 +1037,9 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		var                 parent  = Parent as GuiControl;
 		while (parent != null && visited.Add(parent))
 		{
-			x      += parent.X;
-			y      += parent.Y;
+			var offset = parent.ChildContentOffset;
+			x      += parent.X + offset.X;
+			y      += parent.Y + offset.Y;
 			parent =  parent.Parent as GuiControl;
 		}
 

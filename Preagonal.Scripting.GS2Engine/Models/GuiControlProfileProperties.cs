@@ -26,13 +26,13 @@ public class GuiControlProfileProperties : ScriptProperties<GuiControlProfile>
 			{ "bordercolorhl", "The highlighted border color.", profile => profile.BorderColorHl, (profile, value) => profile.BorderColorHl = value },
 			{ "bordercolorna", "The disabled border color.", profile => profile.BorderColorNa, (profile, value) => profile.BorderColorNa = value },
 			{ "borderthickness", "The border thickness.", profile => profile.BorderThickness, (profile, value) => profile.BorderThickness = value },
-			{ "boxextent", "The extent of bitmap boxes used by the profile.", profile => profile.BoxExtent, (profile, value) => profile.BoxExtent = value },
+			{ "boxextent", "The checkbox dimensions used by GuiCheckBoxCtrl.", profile => profile.BoxExtent, (profile, value) => profile.BoxExtent = value },
 			{ "cankeyfocus", "Whether controls using the profile can receive keyboard focus.", profile => profile.CanKeyFocus, (profile, value) => profile.CanKeyFocus = value },
 			{ "cursorcolor", "The text cursor color.", profile => profile.CursorColor, (profile, value) => profile.CursorColor = value },
 			{ "fillcolor", "The normal fill color.", profile => profile.FillColor, (profile, value) => profile.FillColor = value },
 			{ "fillcolorhl", "The highlighted fill color.", profile => profile.FillColorHl, (profile, value) => profile.FillColorHl = value },
 			{ "fillcolorna", "The disabled fill color.", profile => profile.FillColorNa, (profile, value) => profile.FillColorNa = value },
-			{ "fillonlynonchildarea", "Whether filling excludes areas occupied by child controls.", profile => profile.FillOnlyNonChildArea, (profile, value) => profile.FillOnlyNonChildArea = value },
+			{ "fillonlynonchildarea", "When opaque, fills only the background area not occupied by child controls.", profile => profile.FillOnlyNonChildArea, (profile, value) => profile.FillOnlyNonChildArea = value },
 			{ "focusonshow", "Whether controls receive keyboard focus when shown.", profile => profile.FocusOnShow, (profile, value) => profile.FocusOnShow = value },
 			{ "fontcolor", "The normal font color.", profile => profile.FontColor, (profile, value) => profile.FontColor = value },
 			{ "fontcolorhl", "The highlighted font color.", profile => profile.FontColorHl, (profile, value) => profile.FontColorHl = value },
@@ -49,7 +49,7 @@ public class GuiControlProfileProperties : ScriptProperties<GuiControlProfile>
 			{ "fonttype", "The font resource name.", profile => profile.FontType, (profile, value) => profile.FontType = value },
 			{ "gradientcolor", "The secondary color used for gradients.", profile => profile.GradientColor, (profile, value) => profile.GradientColor = value },
 			{
-				"justify", "The profile's text justification.", profile => profile.Align, (profile, value) =>
+				"justify", "An alias for the profile's align setting.", profile => profile.Align, (profile, value) =>
 				{
 					profile.Align   = value;
 					profile.Justify = value;
@@ -60,10 +60,10 @@ public class GuiControlProfileProperties : ScriptProperties<GuiControlProfile>
 			{ "mouseoverselected", "Whether pointer hover uses the selected visual state.", profile => profile.MouseOverSelected, (profile, value) => profile.MouseOverSelected = value },
 			{ "modal", "Whether controls using the profile are modal.", profile => profile.Modal, (profile, value) => profile.Modal = value },
 			{ "normalbitmap", "The bitmap shown in the normal state.", profile => profile.NormalBitmap, (profile, value) => profile.NormalBitmap = value },
-			{ "numbersonly", "Whether text input accepts only numbers.", profile => profile.NumbersOnly, (profile, value) => profile.NumbersOnly = value },
+			{ "numbersonly", "Restricts text-entry controls to numeric input.", profile => profile.NumbersOnly, (profile, value) => profile.NumbersOnly = value },
 			{ "returntab", "Whether tab and return input is retained by the control.", profile => profile.ReturnTab, (profile, value) => profile.ReturnTab = value },
 			{ "opaque", "Whether the profile draws an opaque background.", profile => profile.Opaque, (profile, value) => profile.Opaque = value },
-			{ "overridestylefont", "Whether style-specific fonts override the main font.", profile => profile.OverrideStyleFont, (profile, value) => profile.OverrideStyleFont = value },
+			{ "overridestylefont", "Allows the profile's font settings to override those of the GUI style.", profile => profile.OverrideStyleFont, (profile, value) => profile.OverrideStyleFont = value },
 			{ "pressedbitmap", "The bitmap shown while a control is pressed.", profile => profile.PressedBitmap, (profile, value) => profile.PressedBitmap = value },
 			{ "shadowcolor", "The text shadow color.", profile => profile.ShadowColor, (profile, value) => profile.ShadowColor = value },
 			{ "shadowoffset", "The text shadow offset.", profile => profile.ShadowOffset, (profile, value) => profile.ShadowOffset = value },
@@ -79,10 +79,10 @@ public class GuiControlProfileProperties : ScriptProperties<GuiControlProfile>
 
 		var functions = new FunctionDefinitions<GuiControlProfile>
 		{
-			{ "gettextwidth", "Returns the rendered width of the specified text.", (profile, args) => profile.GetTextWidth(args.Length > 0 ? args[0].GetValue()?.ToString() ?? string.Empty : string.Empty), [new("text", typeof(string))], typeof(int) },
-			{ "gettextheight", "Returns the rendered line height of the profile font.", (profile, _) => profile.GetTextHeight(), [], typeof(int) },
+			{ "gettextwidth", "Measures text width using this profile's font.", (profile, args) => profile.GetTextWidth(args.Length > 0 ? args[0].GetValue()?.ToString() ?? string.Empty : string.Empty), [new("text", typeof(string))], typeof(int) },
+			{ "gettextheight", "Measures text height using this profile's font.", (profile, _) => profile.GetTextHeight(), [], typeof(int) },
 			{
-				"preloadfont", "Preloads the profile font resources.", (profile, _) =>
+				"preloadfont", "Loads the profile's font in advance for later rendering.", (profile, _) =>
 				{
 					profile.PreloadFont();
 					return 0;

@@ -1,13 +1,26 @@
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Preagonal.Scripting.GS2Engine.Models;
 
 namespace Preagonal.Scripting.GS2Engine.GS2.Script;
 
-public delegate ScriptVariable ScriptObjectCreator(string objectName, Script script);
-
 public interface IScriptManager
 {
+	IScriptTranslationProvider? TranslationProvider { get; set; }
+	DateTime                    CurrentTime         { get; }
+	void                        BeginFrame(DateTime now);
+
+	void QueueEvent(
+		ScriptVariable source,
+		Script target,
+		string eventName,
+		IStackEntry[] arguments,
+		ScriptVariable? receiver = null,
+		ScriptExecutionContext? context = null
+	);
+
+	Task                        DispatchPendingEvents(Action<Script, ScriptExecutionContext?, Action>? execute = null);
 	void                        RegisterGlobalObject(string name, ScriptVariable collection);
 	void                        RegisterGlobalScript(Script script);
 	void                        RegisterGlobalVariable(string name, object? variable);

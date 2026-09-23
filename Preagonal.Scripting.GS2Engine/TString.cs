@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+using Preagonal.Scripting.GS2Engine.Models;
 
 namespace Preagonal.Scripting.GS2Engine;
 
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public class TString
 {
-	public static readonly Models.TStringProperties PropertiesInstance = [];
+	public static readonly TStringProperties PropertiesInstance = [];
 
 	public  byte[]  buffer = [];
 	private int     readc;

@@ -32,13 +32,9 @@ public class Script : ScriptVariable
 
 	private static readonly ConcurrentBag<HashSet<string>> EventLookupVisitedPool = new();
 
-	public delegate IStackEntry Command(ScriptMachine machine, IStackEntry[]? args);
-
 	public new static readonly ScriptObjProperties PropertiesInstance = [];
 	public override            IScriptProperties   Properties => PropertiesInstance;
 	private readonly           List<TString>       _strings = [];
-
-	private sealed record EventCatcher(string Handler, ScriptVariable? Sender = null);
 
 	private readonly Dictionary<string, Dictionary<Script, EventCatcher>> _eventCatchers      = new(StringComparer.OrdinalIgnoreCase);
 	private readonly object                                               _functionsLock      = new();
@@ -50,7 +46,7 @@ public class Script : ScriptVariable
 	private          DateTime?                                            _timer;
 	public readonly  Dictionary<string, FunctionParams>                   Functions = new();
 	private          ScriptCom[]                                          _bytecode = [];
-	public readonly  ScriptVariable?                                      RefObject = null;
+	public readonly  ScriptVariable?                                      RefObject;
 	public           bool                                                 ExecutionEnabled { get; private set; } = true;
 	public           bool                                                 HasOnlyFunctions { get; private set; } = true;
 	public           TString                                              File             { get; set; }
@@ -140,7 +136,15 @@ public class Script : ScriptVariable
 		Init();
 	}
 
-	public void HaltExecution() => ExecutionEnabled = false;
+	internal int EventGeneration { get; private set; }
+
+	internal void DiscardPendingEvents() => EventGeneration++;
+
+	public void HaltExecution()
+	{
+		ExecutionEnabled = false;
+		DiscardPendingEvents();
+	}
 
 	public void EnableExecution() => ExecutionEnabled = true;
 
@@ -158,7 +162,6 @@ public class Script : ScriptVariable
 			Functions.Clear();
 		_bytecode = [];
 		_strings.Clear();
-		Clear();
 		lock (_scheduledEventSync)
 			_scheduledEvents.Clear();
 		lock (_receiverTimerSync)
@@ -455,8 +458,15 @@ public class Script : ScriptVariable
 		if (_bytecode.Length < 2)
 			return;
 
+		// A jump into a folded sequence must still execute its original instruction.
+		var entryPoints = Functions.Values.Select(function => function.BytecodePosition).ToHashSet();
+		foreach (var instruction in _bytecode)
+			if (instruction.OpCode is >= Opcode.OP_SET_INDEX and <= Opcode.OP_AND or Opcode.OP_WITH or Opcode.OP_FOREACH)
+				entryPoints.Add((int)instruction.Value);
+
 		for (var index = 0; index < _bytecode.Length - 1; index++)
 		{
+			if (entryPoints.Contains(index + 1)) continue;
 			var op   = _bytecode[index];
 			var next = _bytecode[index + 1];
 
@@ -470,7 +480,7 @@ public class Script : ScriptVariable
 					continue;
 				}
 
-				var hasAssignAfterNext = index + 2 < _bytecode.Length && _bytecode[index + 2].OpCode == Opcode.OP_ASSIGN;
+				var hasAssignAfterNext = index + 2 < _bytecode.Length && !entryPoints.Contains(index + 2) && _bytecode[index + 2].OpCode == Opcode.OP_ASSIGN;
 				var replacement        = hasAssignAfterNext ? GetOptimizedImmediateAssignOpcode(next.OpCode) : GetOptimizedImmediateOpcode(next.OpCode);
 
 				if (replacement != null)
@@ -505,7 +515,7 @@ public class Script : ScriptVariable
 				{
 					var replacement = Opcode.OP_UNKNOWN_234;
 					var consumed    = 1;
-					if (index + 2 < _bytecode.Length)
+					if (index + 2 < _bytecode.Length && !entryPoints.Contains(index + 2))
 					{
 						switch (_bytecode[index + 2].OpCode)
 						{
@@ -548,7 +558,7 @@ public class Script : ScriptVariable
 				}
 
 				replacement = GetOptimizedRegisterMutationOpcode(next.OpCode);
-				if (replacement != null && index + 2 < _bytecode.Length && _bytecode[index + 2].OpCode == Opcode.OP_INDEX_DEC)
+				if (replacement != null && index + 2 < _bytecode.Length && !entryPoints.Contains(index + 2) && _bytecode[index + 2].OpCode == Opcode.OP_INDEX_DEC)
 				{
 					op.OpCode = replacement.Value;
 					SetNoOp(index + 1);
@@ -664,6 +674,36 @@ public class Script : ScriptVariable
 	}
 
 	internal Task<IStackEntry> CallEntries(string eventName, IEnumerable<IStackEntry>? args, ScriptVariable? receiverOverride = null) => Execute(eventName, BuildCallStack(args), receiverOverride);
+
+	internal void QueueGuiEvent(GuiControl control, string eventName, object[] arguments)
+	{
+		var entries = arguments.Select(ToCallStackEntry).OfType<IStackEntry>().ToArray();
+		QueueEvent(control, eventName, entries);
+	}
+
+	internal void QueueEvent(ScriptVariable source, string eventName, IStackEntry[] entries, ScriptVariable? receiver = null, ScriptExecutionContext? context = null)
+	{
+		var hasFunction = HasEventFunction(eventName.ToLowerInvariant());
+		if (hasFunction && ExecutionEnabled)
+			ScriptManager.QueueEvent(
+				source,
+				this,
+				eventName,
+				entries,
+				receiver,
+				context
+			);
+
+		// Capture recipients now: scripts loaded later must not receive an old event.
+		var catcherEvent = source is Script && !string.IsNullOrWhiteSpace(source.Name) ? $"{source.Name}.{eventName}" : eventName;
+		TryGetEventCatchers(catcherEvent, out var catchers);
+		foreach (var catcher in catchers)
+		{
+			if (!catcher.Key.ExecutionEnabled || (hasFunction && ReferenceEquals(catcher.Key, this) && catcher.Value.Sender == null)) continue;
+			var catcherEntries = catcher.Value.Sender is { } sender ? new[] { sender.ToStackEntry() }.Concat(entries).ToArray() : entries;
+			ScriptManager.QueueEvent(source, catcher.Key, catcher.Value.Handler, catcherEntries, context: context);
+		}
+	}
 
 	internal void InstallObjectEventCatchers(string objectName, Script sourceScript)
 	{
@@ -796,6 +836,7 @@ public class Script : ScriptVariable
 		{
 			IStackEntry entry      => entry,
 			string s               => s.ToStackEntry(),
+			TString s              => s.ToStackEntry(),
 			int i                  => i.ToStackEntry(),
 			double d               => d.ToStackEntry(),
 			float f                => f.ToStackEntry(),
@@ -866,7 +907,7 @@ public class Script : ScriptVariable
 
 	private string? GetEventFunctionName(string eventName)
 	{
-		var functionName = $"on{eventName}";
+		var functionName = eventName == "istimeout" ? "ontimeout" : $"on{eventName}";
 		if (HasEventFunction(functionName)) return functionName;
 
 		foreach (var alias in Gs1EventAliases)
@@ -990,6 +1031,8 @@ public class Script : ScriptVariable
 
 			var normalizedEvent                                                             = eventName.ToLowerInvariant();
 			if (normalizedEvent.StartsWith("on", StringComparison.Ordinal)) normalizedEvent = normalizedEvent[2..];
+			if (normalizedEvent is "timeout" or "istimeout")
+				return await CallScriptEvent("istimeout", null, entries).ConfigureAwait(false);
 			if (IsInitializationEvent(normalizedEvent))
 				return await CallScriptEvent(normalizedEvent, null, entries).ConfigureAwait(false);
 
@@ -1004,7 +1047,7 @@ public class Script : ScriptVariable
 				foreach (var catcher in catchers)
 				{
 					if (hasFunction && ReferenceEquals(catcher.Key, this) && catcher.Value.Sender == null) continue;
-					var catcherEntries = catcher.Value.Sender is { } sender ? new[] { sender.ToStackEntry() }.Cast<IStackEntry>().Concat(entries ?? []).ToArray() : entries;
+					var catcherEntries = catcher.Value.Sender is { } sender ? new[] { sender.ToStackEntry() }.Concat(entries ?? []).ToArray() : entries;
 					result = await catcher.Key.CallEntries(catcher.Value.Handler, catcherEntries).ConfigureAwait(false);
 				}
 
@@ -1061,7 +1104,7 @@ public class Script : ScriptVariable
 	public void SetTimer(double value)
 	{
 		lock (_timerSync)
-			_timer = value > 0.0001d ? DateTime.UtcNow.AddSeconds(value) : null;
+			_timer = value > 0.0001d ? ScriptManager.CurrentTime.AddSeconds(value) : null;
 		/*try
 		{
 			if (!ThreadPool.QueueUserWorkItem(
@@ -1095,7 +1138,7 @@ public class Script : ScriptVariable
 		{
 			_receiverTimers.Remove(receiver);
 			if (value > 0.0001d)
-				_receiverTimers.Add(receiver, DateTime.UtcNow.AddSeconds(value));
+				_receiverTimers.Add(receiver, ScriptManager.CurrentTime.AddSeconds(value));
 		}
 	}
 
@@ -1103,7 +1146,7 @@ public class Script : ScriptVariable
 	{
 		lock (_timerSync)
 		{
-			if (!ExecutionEnabled || _timer == null || now < _timer)
+			if (!ExecutionEnabled || _timer == null || (_timer.Value - now).TotalSeconds > 0.0001d)
 				return false;
 
 			_timer = null;
@@ -1119,7 +1162,7 @@ public class Script : ScriptVariable
 		DateTime dueAt;
 		try
 		{
-			dueAt = DateTime.UtcNow.AddSeconds(delay);
+			dueAt = ScriptManager.CurrentTime.AddSeconds(delay);
 		}
 		catch (ArgumentOutOfRangeException)
 		{
@@ -1150,7 +1193,7 @@ public class Script : ScriptVariable
 		ScriptScheduledEvent[] receiverTimers;
 		lock (_receiverTimerSync)
 		{
-			var dueReceivers = _receiverTimers.Where(timer => timer.Value <= now).Select(timer => timer.Key).ToArray();
+			var dueReceivers = _receiverTimers.Where(timer => (timer.Value - now).TotalSeconds <= 0.0001d).Select(timer => timer.Key).ToArray();
 			foreach (var receiver in dueReceivers)
 				_receiverTimers.Remove(receiver);
 			receiverTimers = dueReceivers.Select(receiver => new ScriptScheduledEvent(now, "onTimeout", receiver, [])).ToArray();
@@ -1158,7 +1201,7 @@ public class Script : ScriptVariable
 
 		lock (_scheduledEventSync)
 		{
-			var dueEvents = _scheduledEvents.Where(scheduledEvent => !scheduledEvent.IsQueued && scheduledEvent.DueAt <= now).ToArray();
+			var dueEvents = _scheduledEvents.Where(scheduledEvent => !scheduledEvent.IsQueued && (scheduledEvent.DueAt - now).TotalSeconds <= 0.0001d).ToArray();
 			// Retain queued events until dispatch so an earlier callback can cancel a later one.
 			foreach (var scheduledEvent in dueEvents)
 				scheduledEvent.IsQueued = true;

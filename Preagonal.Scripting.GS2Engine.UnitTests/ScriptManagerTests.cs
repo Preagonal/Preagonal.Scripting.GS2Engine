@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging.Testing;
+using Preagonal.Scripting.GS2Compiler;
 using Preagonal.Scripting.GS2Engine.Enums;
 using Preagonal.Scripting.GS2Engine.Extensions;
 using Preagonal.Scripting.GS2Engine.GS2.Script;
@@ -9,6 +10,30 @@ namespace Preagonal.Scripting.GS2Engine.UnitTests;
 
 public class ScriptManagerTests
 {
+	[Theory]
+	[InlineData("")]
+	[InlineData("unknown_object")]
+	public void Anonymous_objects_are_distinct_and_named_objects_are_reused(string name)
+	{
+		var manager = new ScriptManager(new FakeLogger<ScriptManager>());
+		var script  = new Script(manager, ScriptType.Weapon);
+		manager.RegisterObjectCreator("Panel", (id, owner) => new GuiControl(id, owner));
+		Assert.True(manager.TryCreateObject("Panel", name, script, out var first));
+		Assert.True(manager.TryCreateObject("Panel", name, script, out var second));
+		Assert.NotSame(first, second);
+		Assert.NotEqual(first!.Name, second!.Name);
+		Assert.Same(first, manager.GlobalVariables.GetVariable(first.Name).GetValue());
+		Assert.Same(second, manager.GlobalVariables.GetVariable(second.Name).GetValue());
+		if (name == "unknown_object") Assert.Same(second, manager.GlobalVariables.GetVariable(name).GetValue());
+		((GuiControl)first).Destroy();
+		Assert.Same(second, manager.GlobalVariables.GetVariable(second.Name).GetValue());
+		((GuiControl)second).Destroy();
+		Assert.False(manager.GlobalVariables.ContainsVariable("unknown_object"));
+		Assert.True(manager.TryCreateObject("Panel", "named", script, out var named));
+		Assert.True(manager.TryCreateObject("Panel", "named", script, out var reused));
+		Assert.Same(named, reused);
+	}
+
 	[Fact]
 	public async Task New_named_static_variable_template_copies_values_without_aliasing_array_storage()
 	{
@@ -214,13 +239,13 @@ public class ScriptManagerTests
 	}
 
 	[Fact]
-	public void UnregisterGlobalScript_removes_object_event_catchers_from_other_scripts()
+	public async Task UnregisterGlobalScript_removes_object_event_catchers_from_other_scripts()
 	{
 		var callCount = 0;
 		var manager   = new ScriptManager(new FakeLogger<ScriptManager>());
 		manager.RegisterGlobalVariable(
 			"markevent",
-			(Script.Command)((_, _) =>
+			(ScriptCommand)((_, _) =>
 			{
 				callCount++;
 				return 0.ToStackEntry();
@@ -231,9 +256,11 @@ public class ScriptManagerTests
 		var source  = new Script(manager, "event-source", Compile("function control.onAction() { markevent(); }"));
 		manager.RegisterGlobalScript(source);
 		control.TriggerAction();
+		await manager.DispatchPendingEvents();
 
 		manager.UnregisterGlobalScript(source);
 		control.TriggerAction();
+		await manager.DispatchPendingEvents();
 
 		Assert.Equal(1, callCount);
 	}
@@ -245,7 +272,7 @@ public class ScriptManagerTests
 		var manager   = new ScriptManager(new FakeLogger<ScriptManager>());
 		manager.RegisterGlobalVariable(
 			"markevent",
-			(Script.Command)((_, _) =>
+			(ScriptCommand)((_, _) =>
 			{
 				callCount++;
 				return 0.ToStackEntry();
@@ -271,13 +298,14 @@ public class ScriptManagerTests
 
 		await source.Call("onCreated");
 		control.TriggerAction();
+		await manager.DispatchPendingEvents();
 
 		Assert.Equal(1, callCount);
 	}
 
 	private static byte[] Compile(string scriptText)
 	{
-		var response = GS2Compiler.Interface.CompileCode(scriptText, "weapon", "test", withHeader: false);
+		var response = Interface.CompileCode(scriptText, "weapon", "test", withHeader: false);
 		if (response.Success)
 			return response.ByteCode;
 

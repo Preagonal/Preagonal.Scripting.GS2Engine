@@ -16,7 +16,7 @@ public class ScriptObjProperties : ScriptProperties<Script>
 			new()
 			{
 				{
-					"settimer", "Schedules the object's onTimeout event after the specified delay.", (control, machine, o2) =>
+					"settimer", "Schedules onTimeout after a delay in seconds, like assigning timeout.", (control, machine, o2) =>
 					{
 						var value = o2.FirstOrDefault()?.GetValue();
 						switch (value)

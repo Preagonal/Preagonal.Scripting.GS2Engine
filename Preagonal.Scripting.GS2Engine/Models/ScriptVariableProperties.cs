@@ -1,8 +1,8 @@
-namespace Preagonal.Scripting.GS2Engine.Models;
-
 using System;
 using System.Linq;
 using Preagonal.Scripting.GS2Engine.GS2.Script;
+
+namespace Preagonal.Scripting.GS2Engine.Models;
 
 public class ScriptVariableProperties : ScriptProperties<ScriptVariable>
 {
@@ -14,21 +14,24 @@ public class ScriptVariableProperties : ScriptProperties<ScriptVariable>
 			this,
 			new()
 			{
+				{ "getdynamicvarnames", "Lists dynamic field names, excluding built-in properties.", (variable, _) => GetVariableNames(variable, false, true) },
+				{ "getstaticvarnames", "Lists built-in property names rather than dynamic fields.", (variable, _) => GetVariableNames(variable, true, false) },
+				{ "getvarnames", "Lists the names of this object's fields, including registered properties and dynamic variables.", (variable, _) => GetVariableNames(variable, true, true) },
 				{
-					"clearvars", "Clears the variables stored on this object.", (variable, _) =>
+					"clearvars", "Removes this object's dynamic fields.", (variable, _) =>
 					{
 						variable.Clear();
 						return 0;
 					}
 				},
 				{
-					"isinclass", "Returns whether this object has joined the named class.", (variable, args) => args.Length > 0 && variable.JoinedClassNames.Contains(args[0].GetValue()?.ToString() ?? string.Empty, StringComparer.OrdinalIgnoreCase),
-					[new("className", typeof(string))]
+					"isinclass", "Checks whether this object has joined the specified class.",
+					(variable, args) => args.Length > 0 && variable.JoinedClassNames.Contains(args[0].GetValue()?.ToString() ?? string.Empty, StringComparer.OrdinalIgnoreCase), [new("className", typeof(string))]
 				},
 				{ "degtorad", "Converts degrees to radians.", (_, args) => args.Length > 0 ? args[0].GetValue<double>() * Math.PI / 180d : 0d, [new("degrees", typeof(double))] },
 				{ "radtodeg", "Converts radians to degrees.", (_, args) => args.Length > 0 ? args[0].GetValue<double>() * 180d / Math.PI : 0d, [new("radians", typeof(double))] },
 				{
-					"cancelevents", "Cancels scheduled events with the given name on this object.", (variable, machine, args) =>
+					"cancelevents", "Cancels scheduled events on this object that have the supplied event name.", (variable, machine, args) =>
 					{
 						if (args.Length > 0)
 							(variable as Script ?? variable.OwnerScript ?? machine.CurrentScript).CancelEvents(variable, args[0].GetValue()?.ToString() ?? string.Empty);
@@ -37,7 +40,7 @@ public class ScriptVariableProperties : ScriptProperties<ScriptVariable>
 					[new("eventName", typeof(string))]
 				},
 				{
-					"scheduleevent", "Schedules an event on this object.", (variable, machine, args) =>
+					"scheduleevent", "Schedules onEventname after a delay in seconds, followed by the event name and its arguments.", (variable, machine, args) =>
 					{
 						if (args.Length < 2) return false;
 
@@ -48,12 +51,12 @@ public class ScriptVariableProperties : ScriptProperties<ScriptVariable>
 					[new("delay", typeof(double)), new("eventName", typeof(string)), new("arguments", typeof(object[]), true)]
 				},
 				{
-					"hasfunction", "Returns whether this object exposes the named function.", (variable, machine, args) => args.Length > 0 && machine.HasFunction(variable, args[0].GetValue()?.ToString() ?? string.Empty),
+					"hasfunction", "Checks whether the named function is available to the calling script on this object.", (variable, machine, args) => args.Length > 0 && machine.HasFunction(variable, args[0].GetValue()?.ToString() ?? string.Empty),
 					[new("functionName", typeof(string))]
 				},
-				{ "trigger", "Triggers an event on this object.", Trigger, [new("eventName", typeof(string))] },
+				{ "trigger", "Queues onEventname with the supplied arguments without interrupting the running script.", Trigger, [new("eventName", typeof(string)), new("arguments", typeof(object[]), true)] },
 				{
-					"catchevent", "Catches an event emitted by another object.", (variable, machine, args) =>
+					"catchevent", "Registers a handler for an object's event; the handler receives the emitting object as its first argument.", (variable, machine, args) =>
 					{
 						if (args.Length < 2 || ResolveEventTarget(machine, args[0]) is not { } target || string.IsNullOrWhiteSpace(target.Name)) return false;
 
@@ -68,7 +71,7 @@ public class ScriptVariableProperties : ScriptProperties<ScriptVariable>
 					[new("object", typeof(object)), new("eventName", typeof(string)), new("handlerName", typeof(string), true)]
 				},
 				{
-					"ignoreevent", "Stops catching an event emitted by another object.", (variable, machine, args) =>
+					"ignoreevent", "Stops receiving the named event from the specified object.", (variable, machine, args) =>
 					{
 						if (args.Length < 2 || ResolveEventTarget(machine, args[0]) is not { } target) return false;
 						(target.OwnerScript ?? target as Script)?.IgnoreEvent(target.Name, args[1].GetValue()?.ToString() ?? "", variable as Script ?? variable.OwnerScript ?? machine.CurrentScript);
@@ -77,7 +80,7 @@ public class ScriptVariableProperties : ScriptProperties<ScriptVariable>
 					[new("object", typeof(object)), new("eventName", typeof(string))]
 				},
 				{
-					"join", "Joins a class script to this object.", (variable, args) =>
+					"join", "Joins a class to gain its functions and event handlers.", (variable, args) =>
 					{
 						if (args.Length > 0)
 						{
@@ -92,7 +95,7 @@ public class ScriptVariableProperties : ScriptProperties<ScriptVariable>
 					[new("className", typeof(string))]
 				},
 				{
-					"leave", "Leaves a class script to this object.", (variable, args) =>
+					"leave", "Detaches a class previously joined to this object.", (variable, args) =>
 					{
 						if (args.Length > 0)
 						{
@@ -110,6 +113,14 @@ public class ScriptVariableProperties : ScriptProperties<ScriptVariable>
 		Compile();
 	}
 
+	private static string[] GetVariableNames(ScriptVariable variable, bool includeProperties, bool includeDynamic)
+	{
+		var names = includeProperties ? variable.Properties.Where(property => !property.IsFunction && property.HasReadMethod).Select(property => property.PropertyName) : Enumerable.Empty<string>();
+		if (includeDynamic)
+			names = names.Concat(variable.GetSnapshot().Select(pair => pair.Key));
+		return names.Distinct(StringComparer.Ordinal).OrderBy(name => name, StringComparer.Ordinal).ToArray();
+	}
+
 	private static ScriptVariable? ResolveEventTarget(ScriptMachine machine, IStackEntry entry)
 	{
 		if (entry.GetValue() is ScriptVariable target) return target;
@@ -123,11 +134,12 @@ public class ScriptVariableProperties : ScriptProperties<ScriptVariable>
 
 		var eventName = args[0].GetValue()?.ToString() ?? string.Empty;
 		if (string.IsNullOrWhiteSpace(eventName)) return 0;
-		if (!eventName.StartsWith("on", System.StringComparison.OrdinalIgnoreCase))
+		if (!eventName.StartsWith("on", StringComparison.OrdinalIgnoreCase))
 			eventName = $"on{eventName}";
 
-		var targetScript = variable.OwnerScript ?? variable as Script ?? machine.CurrentScript;
+		var targetScript = variable as Script ?? variable.OwnerScript ?? machine.CurrentScript;
 		var targetEvent  = variable is Script || string.IsNullOrWhiteSpace(variable.Name) ? eventName : $"{variable.Name}.{eventName}";
-		return targetScript.CallEntries(targetEvent, args[1..], variable).ConfigureAwait(false).GetAwaiter().GetResult().GetValue() ?? 0;
+		targetScript.QueueEvent(variable, targetEvent, args[1..], variable, machine.ScriptExecutionContext);
+		return 0;
 	}
 }

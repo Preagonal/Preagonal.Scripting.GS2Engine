@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using Microsoft.Extensions.Logging.Testing;
+using Preagonal.Scripting.GS2Compiler;
 using Preagonal.Scripting.GS2Engine.Enums;
 using Preagonal.Scripting.GS2Engine.Extensions;
 using Preagonal.Scripting.GS2Engine.GS2.ByteCode;
@@ -122,9 +124,9 @@ public class ScriptMachineTests
 		return 0;
 	}
 
-	private Script CompileScript(string scriptText, string scriptName = "testScript", ScriptVariable? refObject = null, GS2Compiler.ScriptGrammar grammar = GS2Compiler.ScriptGrammar.GS2)
+	private Script CompileScript(string scriptText, string scriptName = "testScript", ScriptVariable? refObject = null, ScriptGrammar grammar = ScriptGrammar.GS2)
 	{
-		var response = GS2Compiler.Interface.CompileCode(scriptText, "weapon", scriptName, withHeader: false, grammar: grammar);
+		var response = Interface.CompileCode(scriptText, "weapon", scriptName, withHeader: false, grammar: grammar);
 
 		if (response.Success)
 		{
@@ -143,7 +145,7 @@ public class ScriptMachineTests
 		var captured = string.Empty;
 		_scriptManager.RegisterGlobalVariable(
 			"captureconsole",
-			(Script.Command)((_, args) =>
+			(ScriptCommand)((_, args) =>
 			{
 				captured = args?.FirstOrDefault()?.GetValue()?.ToString() ?? string.Empty;
 				return 0.ToStackEntry();
@@ -185,7 +187,7 @@ public class ScriptMachineTests
 	[Fact]
 	public async Task Given_bare_receiver_property_When_reading_Then_property_getter_is_used()
 	{
-		var response = GS2Compiler.Interface.CompileCode("function onCreated() { return position; }", "levelnpc", "receiver", withHeader: false);
+		var response = Interface.CompileCode("function onCreated() { return position; }", "levelnpc", "receiver", withHeader: false);
 		Assert.True(response.Success, response.ErrMsg);
 		var script = new ReceiverPropertyScript(_scriptManager, response.ByteCode) { Position = 42 };
 
@@ -197,7 +199,7 @@ public class ScriptMachineTests
 	[Fact]
 	public async Task Given_bare_receiver_property_When_assigning_Then_property_setter_is_used()
 	{
-		var response = GS2Compiler.Interface.CompileCode("function onCreated() { position = 42; }", "levelnpc", "receiver", withHeader: false);
+		var response = Interface.CompileCode("function onCreated() { position = 42; }", "levelnpc", "receiver", withHeader: false);
 		Assert.True(response.Success, response.ErrMsg);
 		var script = new ReceiverPropertyScript(_scriptManager, response.ByteCode);
 
@@ -274,7 +276,7 @@ public class ScriptMachineTests
 	public async Task Given_nested_script_event_When_outer_function_resumes_Then_outer_instruction_position_is_restored()
 	{
 		// Arrange
-		_scriptManager.RegisterGlobalVariable("invokenested", (Script.Command)((machine, _) => machine.CurrentScript.Call("onNested").ConfigureAwait(false).GetAwaiter().GetResult()));
+		_scriptManager.RegisterGlobalVariable("invokenested", (ScriptCommand)((machine, _) => machine.CurrentScript.Call("onNested").ConfigureAwait(false).GetAwaiter().GetResult()));
 		var script = CompileScript(
 			"""
 			//#CLIENTSIDE
@@ -918,6 +920,8 @@ public class ScriptMachineTests
 
 		Assert.False(script.GetVariable("before").GetValue<bool>());
 		Assert.True(result.GetValue<bool>());
+		Assert.False(script.GetVariable("faded").GetValue<bool>());
+		await _scriptManager.DispatchPendingEvents();
 		Assert.True(script.GetVariable("faded").GetValue<bool>());
 	}
 
@@ -1047,7 +1051,7 @@ public class ScriptMachineTests
 		string? receiverName = null;
 		_scriptManager.RegisterGlobalVariable(
 			"capturereceiver",
-			(Script.Command)((machine, _) =>
+			(ScriptCommand)((machine, _) =>
 			{
 				receiverName = machine.CurrentReceiver.Name;
 				return 0.ToStackEntry();
@@ -1232,6 +1236,7 @@ public class ScriptMachineTests
 		animation.Transition = "fadein";
 		animation.Duration   = 0.25;
 		panel.AdvanceAnimations(0.3);
+		await _scriptManager.DispatchPendingEvents();
 		Assert.Equal(1d, owner.GetVariable("calls").GetValue<double>());
 		Assert.Equal("fadein", owner.GetVariable("transition").GetValue<string>());
 		Assert.Same(panel, listener.GetVariable("sender").GetValue());
@@ -1770,8 +1775,8 @@ public class ScriptMachineTests
 		//Arrange
 		_receivedStrings.Clear();
 		_calledTimes = 0;
-		var previousCulture   = System.Globalization.CultureInfo.CurrentCulture;
-		var previousUiCulture = System.Globalization.CultureInfo.CurrentUICulture;
+		var previousCulture   = CultureInfo.CurrentCulture;
+		var previousUiCulture = CultureInfo.CurrentUICulture;
 		const string scriptText = """
 		                          			//#CLIENTSIDE
 		                          			function onCreated() {
@@ -1782,8 +1787,8 @@ public class ScriptMachineTests
 
 		try
 		{
-			System.Globalization.CultureInfo.CurrentCulture   = System.Globalization.CultureInfo.GetCultureInfo("sv-SE");
-			System.Globalization.CultureInfo.CurrentUICulture = System.Globalization.CultureInfo.GetCultureInfo("sv-SE");
+			CultureInfo.CurrentCulture   = CultureInfo.GetCultureInfo("sv-SE");
+			CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("sv-SE");
 
 			//Act
 			var result = await script.Call("onCreated");
@@ -1793,8 +1798,8 @@ public class ScriptMachineTests
 		}
 		finally
 		{
-			System.Globalization.CultureInfo.CurrentCulture   = previousCulture;
-			System.Globalization.CultureInfo.CurrentUICulture = previousUiCulture;
+			CultureInfo.CurrentCulture   = previousCulture;
+			CultureInfo.CurrentUICulture = previousUiCulture;
 		}
 	}
 
@@ -2743,9 +2748,12 @@ public class ScriptMachineTests
 	[Fact]
 	public async Task Given_script_object_When_trigger_is_called_Then_object_event_is_invoked()
 	{
-		var script = CompileScript("function onCreated() { object = new TStaticVar(\"object\"); object.trigger(\"Ping\", 7); return object.value; } function object.onPing(value) { this.value = value; }");
+		var script = CompileScript("function onCreated() { object = new TStaticVar(\"object\"); object.trigger(\"Ping\", 7); return object.value; } function object.onPing(value) { this.value = value; } function read() { return object.value; }");
 
 		var result = await script.Call("onCreated");
+		Assert.Equal(0d, result.GetValue<double>());
+		await _scriptManager.DispatchPendingEvents();
+		result = await script.Call("read");
 
 		Assert.Equal(7d, result.GetValue<double>());
 	}
@@ -3316,17 +3324,17 @@ public class ScriptMachineTests
 	{
 		//Arrange
 		const string scriptText = """
-			//#CLIENTSIDE
-			function onCreated() {
-				temp.found = -1;
+		                          //#CLIENTSIDE
+		                          function onCreated() {
+		                          	temp.found = -1;
 
-				if ((temp.found = 3) != -1) {
-					return temp.found;
-				}
+		                          	if ((temp.found = 3) != -1) {
+		                          		return temp.found;
+		                          	}
 
-				return 0;
-			}
-			""";
+		                          	return 0;
+		                          }
+		                          """;
 		var script = CompileScript(scriptText);
 
 		//Act
@@ -3341,22 +3349,22 @@ public class ScriptMachineTests
 	{
 		//Arrange
 		const string scriptText = """
-			//#CLIENTSIDE
-			function onCreated() {
-				temp.i = 0;
-				temp.count = 0;
+		                          //#CLIENTSIDE
+		                          function onCreated() {
+		                          	temp.i = 0;
+		                          	temp.count = 0;
 
-				while (temp.i = 0) {
-					temp.count++;
-					temp.i = 1;
-					if (temp.count > 5) {
-						return -99;
-					}
-				}
+		                          	while (temp.i = 0) {
+		                          		temp.count++;
+		                          		temp.i = 1;
+		                          		if (temp.count > 5) {
+		                          			return -99;
+		                          		}
+		                          	}
 
-				return temp.count;
-			}
-			""";
+		                          	return temp.count;
+		                          }
+		                          """;
 		var script = CompileScript(scriptText);
 
 		//Act
@@ -3873,7 +3881,9 @@ public class ScriptMachineTests
 		var script = CompileScript(scriptText);
 
 		//Act
-		var result = await script.Call("onCreated");
+		await script.Call("onCreated");
+		await _scriptManager.DispatchPendingEvents();
+		var result = script.GetVariable("resize");
 
 		//Assert
 		Assert.Equal("40 50", result.GetValue()?.ToString());
@@ -3899,14 +3909,16 @@ public class ScriptMachineTests
 		var script = CompileScript(scriptText);
 
 		//Act
-		var result = await script.Call("onCreated");
+		await script.Call("onCreated");
+		await _scriptManager.DispatchPendingEvents();
+		var result = script.GetVariable("move");
 
 		//Assert
 		Assert.Equal("2 3", result.GetValue()?.ToString());
 	}
 
 	[Fact]
-	public void Given_registered_global_gui_control_When_set_size_changes_extent_Then_global_onresize_is_called()
+	public async Task Given_registered_global_gui_control_When_set_size_changes_extent_Then_global_onresize_is_called()
 	{
 		//Arrange
 		var control = new GuiControl("graalcontrol", new(_scriptManager, ScriptType.Weapon));
@@ -3923,12 +3935,14 @@ public class ScriptMachineTests
 		//Act
 		control.SetSize(300, 200);
 
+		await _scriptManager.DispatchPendingEvents();
+
 		//Assert
 		Assert.Equal("300 200", _scriptManager.GlobalVariables["resized"].GetValue()?.ToString());
 	}
 
 	[Fact]
-	public void Given_registered_global_gui_control_When_notify_resize_is_called_Then_global_onresize_is_called()
+	public async Task Given_registered_global_gui_control_When_notify_resize_is_called_Then_global_onresize_is_called()
 	{
 		//Arrange
 		var control = new GuiControl("graalcontrol", new(_scriptManager, ScriptType.Weapon));
@@ -3945,6 +3959,8 @@ public class ScriptMachineTests
 
 		//Act
 		control.NotifyResize();
+
+		await _scriptManager.DispatchPendingEvents();
 
 		//Assert
 		Assert.Equal("300 200", _scriptManager.GlobalVariables["resized"].GetValue()?.ToString());
@@ -4092,7 +4108,7 @@ public class ScriptMachineTests
 		var result = await script.Call("onCreated");
 
 		//Assert
-		Assert.Equal("18,30", result.GetValue()?.ToString());
+		Assert.Equal("18,30", result.GetValue<string>());
 	}
 
 	[Fact]
@@ -4116,7 +4132,33 @@ public class ScriptMachineTests
 		var result = await script.Call("onCreated");
 
 		//Assert
-		Assert.Equal("5,6", result.GetValue()?.ToString());
+		Assert.Equal("5,6", result.GetValue<string>());
+	}
+
+	[Theory]
+	[InlineData("{5, 6}")]
+	[InlineData("\"5,6\"")]
+	[InlineData("\"5 6\"")]
+	public async Task Gui_coordinate_functions_accept_points_and_return_indexable_points(string point)
+	{
+		var script = CompileScript(
+			$$"""
+			  //#CLIENTSIDE
+			  function onCreated() {
+			    parent = new GuiControl("parent");
+			    child = new GuiControl("child");
+			    parent.position = "10 20";
+			    child.position = "3 4";
+			    parent.addcontrol(child);
+			    temp.globalpoint = child.localtoglobalcoord({{point}});
+			    temp.localpoint = child.globaltolocalcoord(temp.globalpoint);
+			    return temp.globalpoint[0] @ ":" @ temp.globalpoint[1] @ ":" @
+			      temp.localpoint[0] @ ":" @ temp.localpoint[1] @ ":" @ temp.globalpoint;
+			  }
+			  """
+		);
+		var result = await script.Call("onCreated");
+		Assert.Equal("18:30:5:6:18,30", result.GetValue<string>());
 	}
 
 	[Fact]
@@ -5559,6 +5601,33 @@ public class ScriptMachineTests
 	}
 
 	[Fact]
+	public async Task Given_register_object_conversion_When_member_is_unset_Then_object_keeps_its_storage()
+	{
+		var script = CompileRawBytecodeScript(
+			[
+				(byte)Opcode.OP_THIS,
+				(byte)Opcode.OP_UNKNOWN_234, 0xF0, 0,
+				(byte)Opcode.OP_UNKNOWN_45, 0xF3, 0,
+				(byte)Opcode.OP_INDEX_DEC,
+				(byte)Opcode.OP_UNKNOWN_230, 0xF3, 0,
+				(byte)Opcode.OP_UNKNOWN_234, 0xF0, 1,
+				(byte)Opcode.OP_TYPE_NUMBER, 0xF3, 1,
+				(byte)Opcode.OP_ASSIGN,
+				(byte)Opcode.OP_UNKNOWN_230, 0xF3, 0,
+			],
+			["options", "enabled"]
+		);
+
+		var result  = await script.Call("onCreated");
+		var options = Assert.IsType<ScriptVariable>(result.GetValue());
+		Assert.Same(options, script.GetVariable("options").GetValue());
+		options.AddOrUpdate("allowmass", true.ToStackEntry());
+		var again = await script.Call("onCreated");
+		Assert.Same(options, again.GetValue());
+		Assert.True(options.GetVariable("allowmass").GetValue<bool>());
+	}
+
+	[Fact]
 	public async Task Given_bytecode_optimizer_When_registered_variable_is_incremented_Then_optimized_increment_is_used()
 	{
 		//Arrange
@@ -5903,24 +5972,24 @@ public class ScriptMachineTests
 	{
 		//Arrange
 		const string scriptText = """
-			//#CLIENTSIDE
-			function helper() {
-				for (temp.i = 0; temp.i < 25; temp.i++) {
-				}
-			}
+		                          //#CLIENTSIDE
+		                          function helper() {
+		                          	for (temp.i = 0; temp.i < 25; temp.i++) {
+		                          	}
+		                          }
 
-			function onCreated() {
-				temp.rows = {"a", "b", "c"};
-				temp.count = 0;
+		                          function onCreated() {
+		                          	temp.rows = {"a", "b", "c"};
+		                          	temp.count = 0;
 
-				for (temp.i = 0; temp.i < temp.rows.size(); temp.i++) {
-					helper();
-					temp.count++;
-				}
+		                          	for (temp.i = 0; temp.i < temp.rows.size(); temp.i++) {
+		                          		helper();
+		                          		temp.count++;
+		                          	}
 
-				return temp.count;
-			}
-			""";
+		                          	return temp.count;
+		                          }
+		                          """;
 		var script = CompileScript(scriptText);
 
 		//Act
@@ -6144,7 +6213,7 @@ public class ScriptMachineTests
 	public async Task Given_original_bytecode_command_call_When_arguments_are_emitted_right_to_left_Then_command_receives_source_order()
 	{
 		//Arrange
-		_scriptManager.RegisterGlobalVariable("captureargs", (Script.Command)((_, args) => string.Join("|", (args ?? []).Select(arg => arg.GetValue()?.ToString() ?? string.Empty)).ToStackEntry()));
+		_scriptManager.RegisterGlobalVariable("captureargs", (ScriptCommand)((_, args) => string.Join("|", (args ?? []).Select(arg => arg.GetValue()?.ToString() ?? string.Empty)).ToStackEntry()));
 		var script = CompileRawBytecodeScript(
 			[
 				(byte)Opcode.OP_TYPE_ARRAY,
@@ -6301,6 +6370,19 @@ public class ScriptMachineTests
 
 		//Assert
 		Assert.Equal("Playerworlds|Classics", result.GetValue()?.ToString());
+	}
+
+	[Theory]
+	[InlineData("temp.value = 0.6875; return temp.value[0];", "0.6875")]
+	[InlineData("temp.value = 0.6875; return temp.value[1];", "0")]
+	[InlineData("temp.value = 0.6875; return temp.value[-1];", "0")]
+	[InlineData("temp.value = \"Default\"; return temp.value[0];", "Default")]
+	[InlineData("temp.value = {0.6875, 1}; temp.distance = temp.value[0]; return temp.distance[0];", "0.6875")]
+	[InlineData("temp.value = {}; return temp.value[0];", "0")]
+	public async Task Scalar_index_zero_returns_the_scalar_without_changing_array_bounds(string body, string expected)
+	{
+		var script = CompileScript("function onCreated() { " + body + " }");
+		Assert.Equal(expected, (await script.Call("onCreated")).GetValue<string>());
 	}
 
 	[Fact]
@@ -6460,7 +6542,7 @@ public class ScriptMachineTests
 				this.called = true;
 			}
 			""",
-			grammar: GS2Compiler.ScriptGrammar.GS1
+			grammar: ScriptGrammar.GS1
 		);
 
 		// Act
@@ -6513,7 +6595,7 @@ public class ScriptMachineTests
 				this.chatEvent = true;
 			}
 			""",
-			grammar: GS2Compiler.ScriptGrammar.GS1
+			grammar: ScriptGrammar.GS1
 		);
 
 		// Act
@@ -6537,7 +6619,7 @@ public class ScriptMachineTests
 				this.functionCalled = true;
 			}
 			""",
-			grammar: GS2Compiler.ScriptGrammar.GS1
+			grammar: ScriptGrammar.GS1
 		);
 
 		// Act
@@ -6558,7 +6640,7 @@ public class ScriptMachineTests
 				this.calls++;
 			}
 			""",
-			grammar: GS2Compiler.ScriptGrammar.GS1
+			grammar: ScriptGrammar.GS1
 		);
 
 		// Act
@@ -6567,6 +6649,25 @@ public class ScriptMachineTests
 
 		// Assert
 		Assert.Equal(2.0d, script.GetVariable("calls").GetValue<double>());
+	}
+
+	[Fact]
+	public async Task Updating_bytecode_preserves_receiver_variables_and_replaces_functions()
+	{
+		var script = CompileScript(
+			"""
+			function onCreated() { this.colours = {{255, 255, 255}, {0, 0, 255}}; this.count = 7; }
+			function onTimeout() { this.count = 99; }
+			"""
+		);
+		await script.Call("onCreated");
+		var update = Interface.CompileCode("function onCreated() { this.count++; this.blue = this.colours[1][2]; }", "weapon", "testScript", withHeader: false);
+		Assert.True(update.Success, update.ErrMsg);
+		script.UpdateFromByteCode("testScript", update.ByteCode);
+		await script.Call("onCreated");
+		await script.Call("onTimeout");
+		Assert.Equal(8d, script.GetVariable("count").GetValue<double>());
+		Assert.Equal(255d, script.GetVariable("blue").GetValue<double>());
 	}
 
 	[Fact]
@@ -6579,9 +6680,9 @@ public class ScriptMachineTests
 				this.initialScript = true;
 			}
 			""",
-			grammar: GS2Compiler.ScriptGrammar.GS1
+			grammar: ScriptGrammar.GS1
 		);
-		var update = GS2Compiler.Interface.CompileCode(
+		var update = Interface.CompileCode(
 			"""
 			this.updatedScriptRan = true;
 			if (playerchats) {
@@ -6591,7 +6692,7 @@ public class ScriptMachineTests
 			"weapon",
 			"testScript",
 			withHeader: false,
-			grammar: GS2Compiler.ScriptGrammar.GS1
+			grammar: ScriptGrammar.GS1
 		);
 		Assert.True(update.Success, update.ErrMsg);
 		script.UpdateFromByteCode("testScript", update.ByteCode);
@@ -6614,9 +6715,9 @@ public class ScriptMachineTests
 			}
 			""",
 			"joinedclass",
-			grammar: GS2Compiler.ScriptGrammar.GS1
+			grammar: ScriptGrammar.GS1
 		);
-		var script = CompileScript("this.ownerScriptCalled = true;", "ownerScript", grammar: GS2Compiler.ScriptGrammar.GS1);
+		var script = CompileScript("this.ownerScriptCalled = true;", "ownerScript", grammar: ScriptGrammar.GS1);
 		script.Join("joinedclass");
 
 		// Act
@@ -6649,6 +6750,7 @@ public class ScriptMachineTests
 
 		//Act
 		control.TriggerAction();
+		await _scriptManager.DispatchPendingEvents();
 		var result = await script.Call("readValue");
 
 		//Assert
@@ -6926,7 +7028,7 @@ public class ScriptMachineTests
 	}
 
 	[Fact]
-	public void Given_visible_gui_control_When_awakened_Then_onshow_is_called()
+	public async Task Given_visible_gui_control_When_awakened_Then_onshow_is_called()
 	{
 		//Arrange
 		const string scriptText = """
@@ -6941,12 +7043,14 @@ public class ScriptMachineTests
 		//Act
 		control.Awaken();
 
+		await _scriptManager.DispatchPendingEvents();
+
 		//Assert
 		Assert.True(_scriptManager.GlobalVariables["shown"].GetValue<bool>());
 	}
 
 	[Fact]
-	public void Given_hidden_gui_control_When_awakened_Then_onshow_is_not_called()
+	public async Task Given_hidden_gui_control_When_awakened_Then_onshow_is_not_called()
 	{
 		//Arrange
 		const string scriptText = """
@@ -6960,6 +7064,8 @@ public class ScriptMachineTests
 
 		//Act
 		control.Awaken();
+
+		await _scriptManager.DispatchPendingEvents();
 
 		//Assert
 		Assert.False(_scriptManager.GlobalVariables.ContainsVariable("shown"));

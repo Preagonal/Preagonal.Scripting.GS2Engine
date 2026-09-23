@@ -9,6 +9,20 @@ namespace Preagonal.Scripting.GS2Engine.UnitTests;
 public class StackEntryExtensionsTests
 {
 	[Fact]
+	public void Reassigning_a_function_preserves_its_callable_type()
+	{
+		ScriptCommand callback = (_, _) => 42.ToStackEntry();
+		var           entry    = 0.ToStackEntry();
+		entry.SetValue(callback);
+		Assert.Equal(StackEntryType.Function, entry.Type);
+		Assert.Same(callback, entry.GetValue());
+		entry.SetValue(callback);
+		Assert.Equal(StackEntryType.Function, entry.Type);
+		entry.SetValue(1d);
+		Assert.Equal(StackEntryType.Number, entry.Type);
+	}
+
+	[Fact]
 	public void When_input_is_null_Then_return_StackEntry_with_type_number_and_value_zero()
 	{
 		//Arrange
@@ -49,7 +63,7 @@ public class StackEntryExtensionsTests
 		//Assert
 		Assert.Equal(StackEntryType.Number, test.Type);
 		Assert.Equal(typeof(double), test.GetValue()?.GetType());
-		Assert.Equal((double)val, test.GetValue());
+		Assert.Equal(val, test.GetValue());
 	}
 
 	[Fact]
@@ -175,14 +189,14 @@ public class StackEntryExtensionsTests
 	public void When_input_is_command_Then_return_StackEntry_with_type_array_and_value_type_List_string()
 	{
 		//Arrange
-		Script.Command val = (_, _) => 0.ToStackEntry();
+		ScriptCommand val = (_, _) => 0.ToStackEntry();
 
 		//Act
 		var test = val.ToStackEntry();
 
 		//Assert
 		Assert.Equal(StackEntryType.Function, test.Type);
-		Assert.Equal(typeof(Script.Command), test.GetValue()?.GetType());
+		Assert.Equal(typeof(ScriptCommand), test.GetValue()?.GetType());
 		Assert.Equal(val, test.GetValue());
 	}
 

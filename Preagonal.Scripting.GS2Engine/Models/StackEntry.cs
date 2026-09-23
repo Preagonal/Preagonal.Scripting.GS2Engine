@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using Preagonal.Scripting.GS2Engine.Enums;
+using Preagonal.Scripting.GS2Engine.GS2.Script;
 
 namespace Preagonal.Scripting.GS2Engine.Models;
 
@@ -126,15 +127,18 @@ public class StackEntry : IStackEntry
 		};
 		Type = value switch
 		{
-			string   => StackEntryType.String,
-			TString  => StackEntryType.String,
-			int      => StackEntryType.Number,
-			double   => StackEntryType.Number,
-			float    => StackEntryType.Number,
-			decimal  => StackEntryType.Number,
-			string[] => StackEntryType.Array,
-			bool     => StackEntryType.Number,
-			_        => StackEntryType.Array,
+			ScriptCommand   => StackEntryType.Function,
+			IScriptProperty => StackEntryType.ScriptProperty,
+			Script          => StackEntryType.Script,
+			string          => StackEntryType.String,
+			TString         => StackEntryType.String,
+			int             => StackEntryType.Number,
+			double          => StackEntryType.Number,
+			float           => StackEntryType.Number,
+			decimal         => StackEntryType.Number,
+			string[]        => StackEntryType.Array,
+			bool            => StackEntryType.Number,
+			_               => StackEntryType.Array,
 		};
 
 		/*

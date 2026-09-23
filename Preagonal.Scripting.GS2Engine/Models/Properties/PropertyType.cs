@@ -6,4 +6,4 @@ public enum PropertyType
 	AcceptStringProperty  = 1,
 	JoinedClassesProperty = 2,
 	AnimationProperty     = 3,
-};
+}

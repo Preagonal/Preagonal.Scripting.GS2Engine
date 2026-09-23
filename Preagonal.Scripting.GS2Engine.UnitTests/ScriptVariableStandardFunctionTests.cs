@@ -7,6 +7,39 @@ namespace Preagonal.Scripting.GS2Engine.UnitTests;
 public sealed class ScriptVariableStandardFunctionTests
 {
 	[Fact]
+	public async Task Dynamic_names_are_sorted_and_exclude_registered_properties_and_functions()
+	{
+		var script = CompileScript("this.zebra = 1; this.alpha = 2; return this.getdynamicvarnames();");
+		var result = await script.Call("onCreated");
+		Assert.Equal(new[] { "alpha", "zebra" }, result.GetValue<string[]>());
+	}
+
+	[Fact]
+	public async Task Static_names_include_inherited_properties_but_not_dynamic_fields_or_functions()
+	{
+		var script = CompileScript("this.value = 1; return this.getstaticvarnames();");
+		var result = await script.Call("onCreated");
+		var names  = result.GetValue<string[]>();
+		Assert.NotNull(names);
+		Assert.Contains("joinedclasses", names);
+		Assert.DoesNotContain("value", names);
+		Assert.DoesNotContain("getstaticvarnames", names);
+		Assert.Equal(names.OrderBy(name => name, StringComparer.Ordinal), names);
+	}
+
+	[Fact]
+	public async Task Combined_names_include_dynamic_fields_and_properties()
+	{
+		var script = CompileScript("this.value = 1; return this.getvarnames();");
+		var result = await script.Call("onCreated");
+		var names  = result.GetValue<string[]>();
+		Assert.NotNull(names);
+		Assert.Contains("joinedclasses", names);
+		Assert.Contains("value", names);
+		Assert.DoesNotContain("getvarnames", names);
+	}
+
+	[Fact]
 	public async Task Call_Given_degrees_When_degtorad_is_called_Then_returns_radians()
 	{
 		var script = CompileScript("return degtorad(180);");
