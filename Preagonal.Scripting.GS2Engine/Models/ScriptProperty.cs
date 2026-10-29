@@ -51,17 +51,30 @@ public class ScriptProperty<TInstance> : IScriptProperty where TInstance : class
 	public bool HasReadMethod  => ReadTyped != null;
 	public bool IsFunction     => ScriptPropertyType == ScriptPropertyType.Function;
 
-	object? IScriptProperty.Read(object instance) => ReadTyped?.Invoke((TInstance)instance);
+	object? IScriptProperty.Read(object instance)
+	{
+		using var nativeCall = new SynchronousScriptCall();
+		return ReadTyped?.Invoke((TInstance)instance);
+	}
 
 	void IScriptProperty.Write(object instance, object? value)
 	{
+		using var nativeCall = new SynchronousScriptCall();
 		WriteTyped?.Invoke((TInstance)instance, value);
 		Callback?.Invoke(value);
 	}
 
-	object? IScriptProperty.Call(object instance, params IStackEntry[] value) => CallTyped != null ? CallTyped.Invoke((TInstance)instance, null, value) : ReadTyped?.Invoke((TInstance)instance);
+	object? IScriptProperty.Call(object instance, params IStackEntry[] value)
+	{
+		using var nativeCall = new SynchronousScriptCall();
+		return CallTyped != null ? CallTyped.Invoke((TInstance)instance, null, value) : ReadTyped?.Invoke((TInstance)instance);
+	}
 
-	object? IScriptProperty.Call(ScriptMachine machine, object instance, params IStackEntry[] value) => CallTyped != null ? CallTyped.Invoke((TInstance)instance, machine, value) : ReadTyped?.Invoke((TInstance)instance);
+	object? IScriptProperty.Call(ScriptMachine machine, object instance, params IStackEntry[] value)
+	{
+		using var nativeCall = new SynchronousScriptCall();
+		return CallTyped != null ? CallTyped.Invoke((TInstance)instance, machine, value) : ReadTyped?.Invoke((TInstance)instance);
+	}
 
 	public void SetCallback(CallbackDelegate callback) => Callback = callback;
 }

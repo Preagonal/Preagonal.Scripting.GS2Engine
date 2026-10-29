@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Preagonal.Scripting.GS2Engine.GS2.Script;
@@ -6,8 +7,11 @@ using Preagonal.Scripting.GS2Engine.Models.Properties;
 
 namespace Preagonal.Scripting.GS2Engine.Models;
 
-public class ScriptProperties<T> : HashSet<IScriptProperty>, IScriptProperties where T : class
+public class ScriptProperties<T> : IScriptProperties where T : class
 {
+	private readonly HashSet<IScriptProperty> _properties = new();
+	private readonly Dictionary<string, IScriptProperty> _byName = new(StringComparer.OrdinalIgnoreCase);
+
 	protected ScriptProperties(Type? parentType)
 	{
 		Type       = typeof(T);
@@ -24,6 +28,8 @@ public class ScriptProperties<T> : HashSet<IScriptProperty>, IScriptProperties w
 	public  Type?              ParentType       { get; }
 	public  bool               Compiled         { get; private set; }
 	public  IScriptProperties? ParentProperties { get; private set; }
+	public int Count => _properties.Count;
+	public bool IsReadOnly => false;
 
 	public void Compile()
 	{
@@ -43,7 +49,8 @@ public class ScriptProperties<T> : HashSet<IScriptProperty>, IScriptProperties w
 				continue;
 			}
 
-			base.Add(prop);
+			_properties.Add(prop);
+			RefreshName(prop.PropertyName);
 		}
 	}
 
@@ -79,23 +86,53 @@ public class ScriptProperties<T> : HashSet<IScriptProperty>, IScriptProperties w
 		}
 	}
 
-	public bool TryGetProperty(string propertyName, out IScriptProperty property)
+	public bool TryGetProperty(string propertyName, out IScriptProperty property) => _byName.TryGetValue(propertyName, out property!);
+
+	public void Add(IScriptProperty scriptProperty)
 	{
-		foreach (var candidate in this)
-		{
-			if (!candidate.PropertyName.Equals(propertyName, StringComparison.OrdinalIgnoreCase)) continue;
-
-			property = candidate;
-			return true;
-		}
-
-		property = null!;
-		return false;
+		_properties.RemoveWhere(existing => existing.ScriptPropertyType == scriptProperty.ScriptPropertyType && existing.PropertyName.Equals(scriptProperty.PropertyName, StringComparison.OrdinalIgnoreCase));
+		_properties.Add(scriptProperty);
+		RefreshName(scriptProperty.PropertyName);
 	}
 
-	public new void Add(IScriptProperty scriptProperty)
+	public bool Remove(IScriptProperty scriptProperty)
 	{
-		RemoveWhere(existing => existing.ScriptPropertyType == scriptProperty.ScriptPropertyType && existing.PropertyName.Equals(scriptProperty.PropertyName, StringComparison.CurrentCultureIgnoreCase));
-		base.Add(scriptProperty);
+		if (!_properties.Remove(scriptProperty)) return false;
+		RefreshName(scriptProperty.PropertyName);
+		return true;
+	}
+
+	public void Clear()
+	{
+		_properties.Clear();
+		_byName.Clear();
+	}
+
+	public int RemoveWhere(Predicate<IScriptProperty> match)
+	{
+		var removed = _properties.RemoveWhere(match);
+		if (removed == 0) return 0;
+		_byName.Clear();
+		foreach (var property in _properties)
+			_byName.TryAdd(property.PropertyName, property);
+		return removed;
+	}
+
+	public bool Contains(IScriptProperty property) => _properties.Contains(property);
+	public void CopyTo(IScriptProperty[] array, int arrayIndex) => _properties.CopyTo(array, arrayIndex);
+	public HashSet<IScriptProperty>.Enumerator GetEnumerator() => _properties.GetEnumerator();
+	IEnumerator<IScriptProperty> IEnumerable<IScriptProperty>.GetEnumerator() => GetEnumerator();
+	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+	private void RefreshName(string name)
+	{
+		// Keep the same winner as enumeration when a property and function share a name.
+		foreach (var property in _properties)
+		{
+			if (!property.PropertyName.Equals(name, StringComparison.OrdinalIgnoreCase)) continue;
+			_byName[name] = property;
+			return;
+		}
+		_byName.Remove(name);
 	}
 }

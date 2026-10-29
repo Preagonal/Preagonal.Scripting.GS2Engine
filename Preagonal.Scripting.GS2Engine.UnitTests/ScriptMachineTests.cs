@@ -324,7 +324,7 @@ public class ScriptMachineTests
 
 		WriteSegment(result, BytecodeSegment.Strings, stringSegment.toByteArray());
 
-		List<byte> bytecode = new(code) { (byte)Opcode.OP_RET };
+		List<byte> bytecode = [.. code, (byte)Opcode.OP_RET];
 		WriteSegment(result, BytecodeSegment.Bytecode, bytecode);
 		result.writeByte((byte)'\n');
 
@@ -873,7 +873,7 @@ public class ScriptMachineTests
 		Assert.True(owner.GetVariable("ownerready").GetValue<bool>());
 		Assert.True(owner.GetVariable("helpersready").GetValue<bool>());
 		var words = Assert.IsType<List<object>>((await owner.Call("formatWords")).GetValue());
-		Assert.Equal(new[] { "one", "two" }, words.Select(word => word.ToString()));
+		Assert.Equal(["one", "two"], words.Select(word => word.ToString()));
 	}
 
 	[Fact]
@@ -4667,7 +4667,7 @@ public class ScriptMachineTests
 		parent.AddControl(second);
 
 		//Assert
-		Assert.Equal(new[] { first, second }, parent.Controls.OfType<GuiControl>().ToArray());
+		Assert.Equal([first, second], parent.Controls.OfType<GuiControl>().ToArray());
 	}
 
 	[Fact]

@@ -6,7 +6,7 @@ public class TStringTests
 	public void When_input_is_byte_array_Then_return_TString_with_copy_of_byte_array_as_buffer()
 	{
 		//Arrange
-		byte[] bytes = { 0, 1, 2, 3 };
+		byte[] bytes = [0, 1, 2, 3];
 
 		//Act
 		TString fromBytes = bytes;

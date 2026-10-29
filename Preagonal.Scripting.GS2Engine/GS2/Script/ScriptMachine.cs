@@ -184,6 +184,9 @@ public class ScriptMachine
 
 	private async Task<IStackEntry> ExecuteCore(string functionName, Stack<IStackEntry>? callStack)
 	{
+		var execution = ScriptExecutionScope.Current;
+		var generation = _script.EventGeneration;
+		if (execution != null) await execution.Checkpoint();
 		var normalizedFunctionName = functionName.Trim().ToLowerInvariant();
 		var executeWholeScript     = normalizedFunctionName.Length == 0;
 		Tools.DebugLine($"[SCRIPT] enter {_script.Name}.{(executeWholeScript ? "<script>" : normalizedFunctionName)}");
@@ -191,7 +194,7 @@ public class ScriptMachine
 		if (!executeWholeScript && !_script.Functions.TryGetValue(normalizedFunctionName, out value))
 		{
 			if (TryGetJoinedClassFunction(ThisObject, normalizedFunctionName, out var joinedCommand))
-				return joinedCommand(this, callStack?.ToArray() ?? []);
+				return await joinedCommand.InvokeAsync(this, callStack?.ToArray() ?? []).ConfigureAwait(false);
 
 			Tools.DebugLine($"[SCRIPT] missing {_script.Name}.{normalizedFunctionName}");
 			return 0.ToStackEntry();
@@ -208,7 +211,7 @@ public class ScriptMachine
 		const int maxLoopCount = 100000;
 
 		IStackEntry?                 opCopy             = null;
-		Stack<IStackEntry>           opWith             = State.WithScope;
+		var           opWith             = State.WithScope;
 		Dictionary<int, IStackEntry> callStackRegisters = new();
 		Dictionary<int, int>         loopCounts         = new();
 		var                          lastIncrement      = "<none>";
@@ -226,8 +229,15 @@ public class ScriptMachine
 		string      DescribeEntry(IStackEntry? entry) => entry == null ? "<empty>" : $"{entry.Type}:{Tools.ToScriptString(UnwrapScriptValue(entry.GetValue()))}";
 
 		Tools.DebugLine($"Starting to execute function \"{_script.Name}.{functionName}\"");
+		var instructions = 0;
 		while (index < _script.Bytecode.Length)
 		{
+			if (execution != null && (instructions++ & 63) == 0)
+			{
+				await execution.Checkpoint();
+				if (!_script.ExecutionEnabled || generation != _script.EventGeneration)
+					throw new OperationCanceledException("The executing script was unloaded or replaced.");
+			}
 			var curIndex = index;
 			// Inline function bodies are jumped over; only falling into another entry point ends this call.
 			if (otherFunctionStarts?.Contains(curIndex) == true)
@@ -359,7 +369,7 @@ public class ScriptMachine
 							switch (thisFunctionEntry.Type)
 							{
 								case Function:
-									stack.Push((thisFunctionCommand as ScriptCommand)?.Invoke(this, callParams.ToArray()) ?? 0.ToStackEntry());
+									stack.Push(await (thisFunctionCommand as ScriptCommand).InvokeAsync(this, callParams.ToArray()).ConfigureAwait(false));
 									break;
 								case ScriptProperty:
 									var thisFunctionProperty = thisFunctionCommand as IScriptProperty;
@@ -373,7 +383,7 @@ public class ScriptMachine
 
 							break;
 						case StackEntryType.String or Variable when TryGetJoinedClassFunction(ThisObject, cmd?.ToString() ?? string.Empty, out var joinedFunction):
-							stack.Push(joinedFunction.Invoke(this, callParams.ToArray()));
+							stack.Push(await joinedFunction.InvokeAsync(this, callParams.ToArray()).ConfigureAwait(false));
 							break;
 						case StackEntryType.String or Variable when TryCallBuiltInFunction(cmd?.ToString(), callParams, rawCallParams, out var builtInResult):
 							stack.Push(builtInResult);
@@ -396,7 +406,7 @@ public class ScriptMachine
 							stack.Push(0.ToStackEntry());
 							break;
 						case Function:
-							stack.Push((cmd as ScriptCommand)?.Invoke(this, callParams.ToArray()) ?? 0.ToStackEntry());
+							stack.Push(await (cmd as ScriptCommand).InvokeAsync(this, callParams.ToArray()).ConfigureAwait(false));
 							break;
 						case ScriptProperty:
 							var scriptProperty = cmd as IScriptProperty;
@@ -412,6 +422,7 @@ public class ScriptMachine
 							break;
 					}
 
+					instructions = 0;
 					break;
 				case Opcode.OP_RET:
 					IStackEntry ret = 0.ToStackEntry();
@@ -431,7 +442,11 @@ public class ScriptMachine
 				case Opcode.OP_SLEEP:
 					var sleep = GetEntryValue<double>(stack.Pop());
 					sleep *= 1000;
-					await Task.Delay((int)sleep).ConfigureAwait(false);
+					if (execution is { CanSuspend: true })
+						await execution.Delay(TimeSpan.FromMilliseconds((int)sleep));
+					else
+						await Task.Delay((int)sleep).ConfigureAwait(false);
+					instructions = 0;
 					break;
 				case Opcode.OP_WAITFOR:
 					if (stack.Count > 0)

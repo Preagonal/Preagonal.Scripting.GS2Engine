@@ -30,7 +30,7 @@ public class Script : ScriptVariable
 		["playertouchesme"] = "playertouchsme", ["playertouchesother"] = "playertouchsother", ["playerhurted"] = "playerhurt", ["wasshooted"] = "wasshot",
 	};
 
-	private static readonly ConcurrentBag<HashSet<string>> EventLookupVisitedPool = new();
+	private static readonly ConcurrentBag<HashSet<string>> EventLookupVisitedPool = [];
 
 	public new static readonly ScriptObjProperties PropertiesInstance = [];
 	public override            IScriptProperties   Properties => PropertiesInstance;
@@ -136,7 +136,7 @@ public class Script : ScriptVariable
 		Init();
 	}
 
-	internal int EventGeneration { get; private set; }
+	public int EventGeneration { get; private set; }
 
 	internal void DiscardPendingEvents() => EventGeneration++;
 
@@ -700,7 +700,7 @@ public class Script : ScriptVariable
 		foreach (var catcher in catchers)
 		{
 			if (!catcher.Key.ExecutionEnabled || (hasFunction && ReferenceEquals(catcher.Key, this) && catcher.Value.Sender == null)) continue;
-			var catcherEntries = catcher.Value.Sender is { } sender ? new[] { sender.ToStackEntry() }.Concat(entries).ToArray() : entries;
+			var catcherEntries = catcher.Value.Sender is { } sender ? [sender.ToStackEntry(), .. entries] : entries;
 			ScriptManager.QueueEvent(source, catcher.Key, catcher.Value.Handler, catcherEntries, context: context);
 		}
 	}
@@ -783,16 +783,18 @@ public class Script : ScriptVariable
 	{
 		string[] functionNames;
 		lock (_functionsLock)
-			functionNames = Functions.Keys.ToArray();
+			functionNames = [.. Functions.Keys];
 
-		return functionNames.Where(functionName =>
-			                    {
-				                    if (!functionName.StartsWith(objectPrefix, StringComparison.OrdinalIgnoreCase)) return false;
-				                    var eventName = functionName[objectPrefix.Length..];
-				                    return eventName.StartsWith("on", StringComparison.OrdinalIgnoreCase);
-			                    }
-		                    )
-		                    .ToArray();
+		return
+		[
+			.. functionNames.Where(functionName =>
+				{
+					if (!functionName.StartsWith(objectPrefix, StringComparison.OrdinalIgnoreCase)) return false;
+					var eventName = functionName[objectPrefix.Length..];
+					return eventName.StartsWith("on", StringComparison.OrdinalIgnoreCase);
+				}
+			),
+		];
 	}
 
 	private bool TryGetEventCatchers(string eventName, out KeyValuePair<Script, EventCatcher>[] catchers)
@@ -801,7 +803,7 @@ public class Script : ScriptVariable
 		{
 			if (_eventCatchers.TryGetValue(eventName.ToLowerInvariant(), out var eventCatchers))
 			{
-				catchers = eventCatchers.ToArray();
+				catchers = [.. eventCatchers];
 				return catchers.Length > 0;
 			}
 		}
@@ -865,7 +867,7 @@ public class Script : ScriptVariable
 	{
 		if (!ScriptManager.GlobalVariables.TryGetVariable(className, out var entry)) return null;
 
-		object? value = entry?.GetValue();
+		var value = entry?.GetValue();
 		while (value is IStackEntry stackEntry)
 			value = stackEntry.GetValue();
 
@@ -1043,11 +1045,11 @@ public class Script : ScriptVariable
 			var hasCatchers = TryGetEventCatchers(eventName, out var catchers);
 			if (hasFunction || hasCatchers)
 			{
-				IStackEntry result = hasFunction ? await Execute(eventName, BuildCallStack(entries)).ConfigureAwait(false) : 0.ToStackEntry();
+				var result = hasFunction ? await Execute(eventName, BuildCallStack(entries)).ConfigureAwait(false) : 0.ToStackEntry();
 				foreach (var catcher in catchers)
 				{
 					if (hasFunction && ReferenceEquals(catcher.Key, this) && catcher.Value.Sender == null) continue;
-					var catcherEntries = catcher.Value.Sender is { } sender ? new[] { sender.ToStackEntry() }.Concat(entries ?? []).ToArray() : entries;
+					var catcherEntries = catcher.Value.Sender is { } sender ? [sender.ToStackEntry(), .. entries ?? []] : entries;
 					result = await catcher.Key.CallEntries(catcher.Value.Handler, catcherEntries).ConfigureAwait(false);
 				}
 
@@ -1196,7 +1198,7 @@ public class Script : ScriptVariable
 			var dueReceivers = _receiverTimers.Where(timer => (timer.Value - now).TotalSeconds <= 0.0001d).Select(timer => timer.Key).ToArray();
 			foreach (var receiver in dueReceivers)
 				_receiverTimers.Remove(receiver);
-			receiverTimers = dueReceivers.Select(receiver => new ScriptScheduledEvent(now, "onTimeout", receiver, [])).ToArray();
+			receiverTimers = [.. dueReceivers.Select(receiver => new ScriptScheduledEvent(now, "onTimeout", receiver, []))];
 		}
 
 		lock (_scheduledEventSync)
@@ -1205,7 +1207,7 @@ public class Script : ScriptVariable
 			// Retain queued events until dispatch so an earlier callback can cancel a later one.
 			foreach (var scheduledEvent in dueEvents)
 				scheduledEvent.IsQueued = true;
-			return receiverTimers.Length == 0 ? dueEvents : receiverTimers.Concat(dueEvents).ToArray();
+			return receiverTimers.Length == 0 ? dueEvents : [.. receiverTimers, .. dueEvents];
 		}
 	}
 
