@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Preagonal.Scripting.GS2Engine.GS2.Script;
 
 namespace Preagonal.Scripting.GS2Engine.Models;
@@ -107,6 +110,40 @@ public class ScriptVariableProperties : ScriptProperties<ScriptVariable>
 					},
 					[new("className", typeof(string))]
 				},
+				{
+					"savejsontostring", "Saves the contents of the script variable as json string", (variable, args) =>
+					{
+						var indentationLevel = 0;
+						if (args.Length > 0)
+						{
+							int.TryParse(args[0].GetValue()?.ToString() ?? string.Empty, out indentationLevel);
+						}
+
+						var serializerOptions = new JsonSerializerOptions
+						{
+							WriteIndented = indentationLevel > 0,
+							IndentCharacter = ' ',
+							PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+							IndentSize = indentationLevel,
+							ReferenceHandler = ReferenceHandler.IgnoreCycles,
+						};
+
+						var output = "";
+
+						try
+						{
+							var objectToSerialize = variable.GetJsonObject();
+							output = JsonSerializer.Serialize(objectToSerialize, serializerOptions);
+						}
+						catch (Exception e)
+						{
+							return JsonSerializer.Serialize(e.Message, serializerOptions);
+						}
+
+						return output;
+					},
+					[new("indentationLevel", typeof(int), true)]
+				},
 			}
 		);
 
@@ -115,10 +152,10 @@ public class ScriptVariableProperties : ScriptProperties<ScriptVariable>
 
 	private static string[] GetVariableNames(ScriptVariable variable, bool includeProperties, bool includeDynamic)
 	{
-		var names = includeProperties ? variable.Properties.Where(property => !property.IsFunction && property.HasReadMethod).Select(property => property.PropertyName) : Enumerable.Empty<string>();
+		var names = includeProperties ? variable.Properties.Where(property => property is { IsFunction: false, HasReadMethod: true }).Select(property => property.PropertyName) : [];
 		if (includeDynamic)
 			names = names.Concat(variable.GetSnapshot().Select(pair => pair.Key));
-		return names.Distinct(StringComparer.Ordinal).OrderBy(name => name, StringComparer.Ordinal).ToArray();
+		return [.. names.Distinct(StringComparer.Ordinal).OrderBy(name => name, StringComparer.Ordinal)];
 	}
 
 	private static ScriptVariable? ResolveEventTarget(ScriptMachine machine, IStackEntry entry)

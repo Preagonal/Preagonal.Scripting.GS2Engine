@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using Preagonal.Scripting.GS2Engine.Enums;
+using Preagonal.Scripting.GS2Engine.Extensions;
 using Preagonal.Scripting.GS2Engine.GS2.Script;
 
 namespace Preagonal.Scripting.GS2Engine.Models;
@@ -14,21 +17,19 @@ public class StackEntry : IStackEntry
 		Parent = parent;
 	}
 
-	private object?        Value       { get; set; }
-	private object?        Parent      { get; set; }
-	public  StackEntryType Type        { get; private set; }
-	public  object?        GetValue()  => Value is LinkedStackEntry linkedValue ? linkedValue.GetValue() : Value;
+	private object?        Value                          { get; set; }
+	private object?        Parent                         { get; set; }
+	public  StackEntryType Type                           { get; private set; }
+	public object? GetValue(bool forJson = false, HashSet<object>? visited = null)
+	{
+		if (!forJson) return Value is LinkedStackEntry linkedValue ? linkedValue.GetValue(forJson, visited) : Value;
+
+		return Value.GetValueForJson(visited);
+	}
+
 	public  object?        GetParent() => Parent;
 
-	public T1? GetValue<T1>()
-	{
-		if (TryGetValue<T1>(out var value))
-		{
-			return (T1?)value;
-		}
-
-		return default;
-	}
+	public T1? GetValue<T1>() => TryGetValue<T1>(out var value) ? (T1?)value : default;
 
 	public bool TryGetValue<T>(out object? value)
 	{

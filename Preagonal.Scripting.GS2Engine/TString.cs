@@ -212,7 +212,7 @@ public class TString
 
 	public void removeStart(int i)
 	{
-		buffer      = buffer.Skip(i).ToArray();
+		buffer      = [.. buffer.Skip(i)];
 		Length      = buffer.Length;
 		writePos    = Length;
 		stringValue = null;

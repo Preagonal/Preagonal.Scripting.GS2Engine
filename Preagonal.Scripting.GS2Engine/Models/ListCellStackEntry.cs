@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using Preagonal.Scripting.GS2Engine.Enums;
 using Preagonal.Scripting.GS2Engine.Extensions;
 
@@ -10,7 +11,7 @@ public sealed class ListCellStackEntry(IList list, int index) : IStackEntry
 
 	public StackEntryType Type => CurrentEntry.Type;
 
-	public object? GetValue() => CurrentValue;
+	public object? GetValue(bool forJson = false, HashSet<object>? visited = null) => CurrentValue;
 
 	public object? GetParent() => _list;
 

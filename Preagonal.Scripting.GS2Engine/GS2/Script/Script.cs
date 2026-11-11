@@ -37,10 +37,10 @@ public class Script : ScriptVariable
 	private readonly           List<TString>       _strings = [];
 
 	private readonly Dictionary<string, Dictionary<Script, EventCatcher>> _eventCatchers      = new(StringComparer.OrdinalIgnoreCase);
-	private readonly object                                               _functionsLock      = new();
-	private readonly object                                               _timerSync          = new();
-	private readonly object                                               _receiverTimerSync  = new();
-	private readonly object                                               _scheduledEventSync = new();
+	private readonly Lock                                                 _functionsLock      = new();
+	private readonly Lock                                                 _timerSync          = new();
+	private readonly Lock                                                 _receiverTimerSync  = new();
+	private readonly Lock                                                 _scheduledEventSync = new();
 	private readonly Dictionary<ScriptVariable, DateTime>                 _receiverTimers     = new(ReferenceEqualityComparer.Instance);
 	private readonly List<ScriptScheduledEvent>                           _scheduledEvents    = [];
 	private          DateTime?                                            _timer;

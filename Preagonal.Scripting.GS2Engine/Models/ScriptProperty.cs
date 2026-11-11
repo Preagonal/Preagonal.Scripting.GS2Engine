@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Preagonal.Scripting.GS2Engine.GS2.Script;
 using Preagonal.Scripting.GS2Engine.Models.Properties;
 
@@ -35,17 +36,17 @@ public class ScriptProperty<TInstance> : IScriptProperty where TInstance : class
 		Parameters         = definition.Parameters;
 	}
 
-	public  ScriptPropertyType                                       ScriptPropertyType { get; }
-	public  string                                                   PropertyName       { get; }
-	public  string                                                   Description        { get; }
-	public  Type                                                     MainType           { get; } = typeof(TInstance);
-	public  Type                                                     ReturnType         { get; }
-	public  IReadOnlyList<FunctionParameterDefinition>               Parameters         { get; }
-	private Func<TInstance, object?>?                                ReadTyped          { get; }
-	private Action<TInstance, object?>?                              WriteTyped         { get; }
-	private Func<TInstance, ScriptMachine?, IStackEntry[], object?>? CallTyped          { get; }
-	private CallbackDelegate?                                        Callback           { get; set; }
-	public  IScriptProperties?                                       Properties         { get; }
+	public              ScriptPropertyType                                       ScriptPropertyType { get; }
+	public              string                                                   PropertyName       { get; }
+	public              string                                                   Description        { get; }
+	[JsonIgnore] public Type                                                     MainType           { get; } = typeof(TInstance);
+	[JsonIgnore] public Type                                                     ReturnType         { get; }
+	public              IReadOnlyList<FunctionParameterDefinition>               Parameters         { get; }
+	private             Func<TInstance, object?>?                                ReadTyped          { get; }
+	private             Action<TInstance, object?>?                              WriteTyped         { get; }
+	private             Func<TInstance, ScriptMachine?, IStackEntry[], object?>? CallTyped          { get; }
+	private             CallbackDelegate?                                        Callback           { get; set; }
+	public              IScriptProperties?                                       Properties         { get; }
 
 	public bool HasWriteMethod => WriteTyped != null;
 	public bool HasReadMethod  => ReadTyped != null;

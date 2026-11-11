@@ -43,16 +43,12 @@ public class VariableCollection
 		lock (_syncRoot)
 		{
 			var key = variable.ToString();
-			if (_collection.ContainsKey(key))
+			if (!_collection.TryAdd(key, value))
 			{
 				if (value is LinkedStackEntry)
 					_collection[key] = value;
 				else
 					_collection[key].SetValue(value.GetValue(), skipCallback);
-			}
-			else
-			{
-				_collection.Add(key, value);
 			}
 
 			return _collection[key];
@@ -88,10 +84,35 @@ public class VariableCollection
 			return _collection.Count == 0 ? [] : _collection.ToArray();
 	}
 
+	protected virtual IEnumerable<KeyValuePair<string, object?>> GetVariableDictionary() => [];
+
+	public IReadOnlyDictionary<string, object?> GetJsonObject(HashSet<object>? visited = null)
+	{
+		visited ??= new(ReferenceEqualityComparer.Instance);
+
+		if (!visited.Add(this))
+			return new Dictionary<string, object?>();
+
+		var objectToSerialize = new Dictionary<string, object?>(
+			GetVariableDictionary());
+
+		lock (_syncRoot)
+		{
+			foreach (var keyValuePair in _collection)
+			{
+				objectToSerialize[keyValuePair.Key] =
+					keyValuePair.Value.GetValue(forJson: true, visited);
+			}
+		}
+
+		return objectToSerialize;
+	}
+
 	public void AddOrUpdate(VariableCollection? collection)
 	{
-		if (collection != null)
-			foreach (var variable in collection.GetSnapshot())
-				AddOrUpdate(variable.Key, variable.Value);
+		if (collection == null) return;
+
+		foreach (var variable in collection.GetSnapshot())
+			AddOrUpdate(variable.Key, variable.Value);
 	}
 }

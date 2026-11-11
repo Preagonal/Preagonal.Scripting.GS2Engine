@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using Preagonal.Scripting.GS2Engine.GS2.Script;
 using Preagonal.Scripting.GS2Engine.Models.Properties;
 
@@ -9,8 +10,8 @@ namespace Preagonal.Scripting.GS2Engine.Models;
 
 public class ScriptProperties<T> : IScriptProperties where T : class
 {
-	private readonly HashSet<IScriptProperty> _properties = new();
-	private readonly Dictionary<string, IScriptProperty> _byName = new(StringComparer.OrdinalIgnoreCase);
+	private readonly HashSet<IScriptProperty>            _properties = [];
+	private readonly Dictionary<string, IScriptProperty> _byName     = new(StringComparer.OrdinalIgnoreCase);
 
 	protected ScriptProperties(Type? parentType)
 	{
@@ -24,12 +25,12 @@ public class ScriptProperties<T> : IScriptProperties where T : class
 		ScriptManager.GlobalProperties.TryAdd(name, this);
 	}
 
-	private Type               Type             { get; }
-	public  Type?              ParentType       { get; }
-	public  bool               Compiled         { get; private set; }
-	public  IScriptProperties? ParentProperties { get; private set; }
-	public int Count => _properties.Count;
-	public bool IsReadOnly => false;
+	[JsonIgnore] private Type               Type             { get; }
+	[JsonIgnore] public  Type?              ParentType       { get; }
+	public               bool               Compiled         { get; private set; }
+	public               IScriptProperties? ParentProperties { get; private set; }
+	public               int                Count            => _properties.Count;
+	public               bool               IsReadOnly       => false;
 
 	public void Compile()
 	{
@@ -118,11 +119,11 @@ public class ScriptProperties<T> : IScriptProperties where T : class
 		return removed;
 	}
 
-	public bool Contains(IScriptProperty property) => _properties.Contains(property);
-	public void CopyTo(IScriptProperty[] array, int arrayIndex) => _properties.CopyTo(array, arrayIndex);
-	public HashSet<IScriptProperty>.Enumerator GetEnumerator() => _properties.GetEnumerator();
-	IEnumerator<IScriptProperty> IEnumerable<IScriptProperty>.GetEnumerator() => GetEnumerator();
-	IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+	public bool                                               Contains(IScriptProperty property)              => _properties.Contains(property);
+	public void                                               CopyTo(IScriptProperty[] array, int arrayIndex) => _properties.CopyTo(array, arrayIndex);
+	public HashSet<IScriptProperty>.Enumerator                GetEnumerator()                                 => _properties.GetEnumerator();
+	IEnumerator<IScriptProperty> IEnumerable<IScriptProperty>.GetEnumerator()                                 => GetEnumerator();
+	IEnumerator IEnumerable.                                  GetEnumerator()                                 => GetEnumerator();
 
 	private void RefreshName(string name)
 	{
@@ -133,6 +134,7 @@ public class ScriptProperties<T> : IScriptProperties where T : class
 			_byName[name] = property;
 			return;
 		}
+
 		_byName.Remove(name);
 	}
 }

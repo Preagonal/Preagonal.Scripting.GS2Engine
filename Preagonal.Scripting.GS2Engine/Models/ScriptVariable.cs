@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Serialization;
 using Preagonal.Scripting.GS2Engine.Extensions;
 using Preagonal.Scripting.GS2Engine.GS2.Script;
 
@@ -8,9 +10,9 @@ public class ScriptVariable(string name = "") : VariableCollection, IScriptVaria
 {
 	private readonly List<string> _joinedClasses = [];
 
-	public string                Name             { get; protected set; } = name;
-	public IReadOnlyList<string> JoinedClassNames => _joinedClasses;
-	public Script?               OwnerScript      { get; internal set; }
+	public              string                Name             { get; protected set; } = name;
+	public              IReadOnlyList<string> JoinedClassNames => _joinedClasses;
+	[JsonIgnore] public Script?               OwnerScript      { get; internal set; }
 
 	public string JoinedClasses
 	{
@@ -23,8 +25,8 @@ public class ScriptVariable(string name = "") : VariableCollection, IScriptVaria
 		}
 	}
 
-	public static readonly ScriptVariableProperties PropertiesInstance = [];
-	public virtual         IScriptProperties        Properties => PropertiesInstance;
+	public static readonly      ScriptVariableProperties PropertiesInstance = [];
+	[JsonIgnore] public virtual IScriptProperties        Properties => PropertiesInstance;
 
 	public void Join(string className)
 	{
@@ -48,13 +50,10 @@ public class ScriptVariable(string name = "") : VariableCollection, IScriptVaria
 			property.SetCallback(setCallback);
 	}
 
-	/*
-	protected void GetCallback(TString variable, VariableCollectionGetCallback getCallback)
-	{
-		if (!ContainsVariable(variable))
-			_collection.Add(variable, 0.ToStackEntry());
-
-		_collection[variable].GetCallback(getCallback);
-	}
-	*/
+	protected override IEnumerable<KeyValuePair<string, object?>> GetVariableDictionary() =>
+	[
+		.. Properties
+		   .Where(p => !p.IsFunction)
+		   .Select(scriptProperty => new KeyValuePair<string, object?>(scriptProperty.PropertyName, scriptProperty.Read(this).GetValueForJson())),
+	];
 }
