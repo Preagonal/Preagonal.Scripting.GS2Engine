@@ -115,7 +115,7 @@ public class ScriptMachine
 		return frame;
 	}
 
-	private HashSet<string> CreateTempAliasFrame() => new(_rootTempAliases, StringComparer.OrdinalIgnoreCase);
+	private HashSet<string> CreateTempAliasFrame() => [with(StringComparer.OrdinalIgnoreCase), .. _rootTempAliases];
 
 	private string CurrentFunctionName => _functionFrames.Count > 0 ? _functionFrames.Peek() : string.Empty;
 
@@ -369,12 +369,12 @@ public class ScriptMachine
 							switch (thisFunctionEntry.Type)
 							{
 								case Function:
-									stack.Push(await (thisFunctionCommand as ScriptCommand).InvokeAsync(this, callParams.ToArray()).ConfigureAwait(false));
+									stack.Push(await (thisFunctionCommand as ScriptCommand).InvokeAsync(this, [.. callParams]).ConfigureAwait(false));
 									break;
 								case ScriptProperty:
 									var thisFunctionProperty = thisFunctionCommand as IScriptProperty;
 									var thisFunctionInstance = thisFunctionProperty != null ? ResolveScriptPropertyInstance(thisFunctionProperty, thisFunctionEntry.GetParent()) : null;
-									stack.Push((thisFunctionProperty?.Call(this, thisFunctionInstance!, callParams.ToArray()) ?? 0).ToStackEntry());
+									stack.Push((thisFunctionProperty?.Call(this, thisFunctionInstance!, [.. callParams]) ?? 0).ToStackEntry());
 									break;
 								default:
 									stack.Push(0.ToStackEntry());
@@ -383,7 +383,7 @@ public class ScriptMachine
 
 							break;
 						case StackEntryType.String or Variable when TryGetJoinedClassFunction(ThisObject, cmd?.ToString() ?? string.Empty, out var joinedFunction):
-							stack.Push(await joinedFunction.InvokeAsync(this, callParams.ToArray()).ConfigureAwait(false));
+							stack.Push(await joinedFunction.InvokeAsync(this, [.. callParams]).ConfigureAwait(false));
 							break;
 						case StackEntryType.String or Variable when TryCallBuiltInFunction(cmd?.ToString(), callParams, rawCallParams, out var builtInResult):
 							stack.Push(builtInResult);
@@ -406,7 +406,7 @@ public class ScriptMachine
 							stack.Push(0.ToStackEntry());
 							break;
 						case Function:
-							stack.Push(await (cmd as ScriptCommand).InvokeAsync(this, callParams.ToArray()).ConfigureAwait(false));
+							stack.Push(await (cmd as ScriptCommand).InvokeAsync(this, [.. callParams]).ConfigureAwait(false));
 							break;
 						case ScriptProperty:
 							var scriptProperty = cmd as IScriptProperty;
@@ -415,7 +415,7 @@ public class ScriptMachine
 							if (scriptProperty != null && inst == null && opWith is { Count: > 0 })
 								inst = ResolveScriptPropertyInstance(scriptProperty, opWith.Peek().GetValue());
 
-							stack.Push((scriptProperty?.Call(this, inst!, callParams.ToArray()) ?? 0).ToStackEntry());
+							stack.Push((scriptProperty?.Call(this, inst!, [.. callParams]) ?? 0).ToStackEntry());
 							break;
 						default:
 							stack.Push(0.ToStackEntry());
@@ -1046,7 +1046,7 @@ public class ScriptMachine
 						objects.Add(ResolveReadableScriptProperty(ResolveEntryForRead(stack.Pop(), opWith, returnStackEntryIfNotFound: true)).GetValue());
 					if (stack.Count > 0)
 						stack.Pop();
-					var formatted = Tools.Format(GetEntryValue<TString>(format) ?? "", objects.ToArray());
+					var formatted = Tools.Format(GetEntryValue<TString>(format) ?? "", [.. objects]);
 					stack.Push(formatted.ToStackEntry());
 					break;
 				case Opcode.OP_INT:
@@ -1775,7 +1775,7 @@ public class ScriptMachine
 			return false;
 		}
 
-		result = (property.Call(this, receiver!, args.Skip(1).ToArray()) ?? 0).ToStackEntry();
+		result = (property.Call(this, receiver!, [.. args.Skip(1)]) ?? 0).ToStackEntry();
 		return true;
 	}
 
@@ -2323,14 +2323,16 @@ public class ScriptMachine
 		{
 			null                                                        => null,
 			TString or string                                           => null,
-			VariableCollection variable when includeVariableCollections => variable.GetDictionary().OrderBy(pair => GetScriptKeyOrder(pair.Key)).ThenBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => UnwrapScriptValue(pair.Value)).ToList(),
-			IDictionary<string, IStackEntry> dictionary                 => dictionary.OrderBy(pair => GetScriptKeyOrder(pair.Key)).ThenBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => UnwrapScriptValue(pair.Value)).ToList(),
-			IDictionary dictionary => dictionary.Cast<DictionaryEntry>()
-			                                    .OrderBy(entry => GetScriptKeyOrder(entry.Key?.ToString() ?? string.Empty))
-			                                    .ThenBy(entry => entry.Key?.ToString() ?? string.Empty, StringComparer.Ordinal)
-			                                    .Select(entry => UnwrapScriptValue(entry.Value))
-			                                    .ToList(),
-			IEnumerable enumerable => enumerable.Cast<object?>().Select(UnwrapScriptValue).ToList(),
+			VariableCollection variable when includeVariableCollections => [.. variable.GetDictionary().OrderBy(pair => GetScriptKeyOrder(pair.Key)).ThenBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => UnwrapScriptValue(pair.Value))],
+			IDictionary<string, IStackEntry> dictionary                 => [.. dictionary.OrderBy(pair => GetScriptKeyOrder(pair.Key)).ThenBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => UnwrapScriptValue(pair.Value))],
+			IDictionary dictionary =>
+			[
+				.. dictionary.Cast<DictionaryEntry>()
+				             .OrderBy(entry => GetScriptKeyOrder(entry.Key?.ToString() ?? string.Empty))
+				             .ThenBy(entry => entry.Key?.ToString() ?? string.Empty, StringComparer.Ordinal)
+				             .Select(entry => UnwrapScriptValue(entry.Value)),
+			],
+			IEnumerable enumerable => [.. enumerable.Cast<object?>().Select(UnwrapScriptValue)],
 			_                      => null,
 		};
 	}

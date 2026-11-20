@@ -322,7 +322,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		IGuiControl?[] controls;
 		lock (Controls)
 		{
-			controls = Controls.ToArray();
+			controls = [.. Controls];
 			Controls.Clear();
 		}
 
@@ -378,7 +378,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		IGuiControl?[] controls;
 		lock (Controls)
 		{
-			controls = Controls.ToArray();
+			controls = [.. Controls];
 		}
 
 		foreach (var control in controls.OfType<GuiControl>())
@@ -405,7 +405,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		IGuiControl?[] controls;
 		lock (Controls)
 		{
-			controls = Controls.ToArray();
+			controls = [.. Controls];
 			Controls.Clear();
 		}
 
@@ -541,7 +541,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		IGuiControl?[] controls;
 		lock (Controls)
 		{
-			controls = Controls.ToArray();
+			controls = [.. Controls];
 		}
 
 		foreach (var control in controls.OfType<GuiControl>())
@@ -638,7 +638,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 
 		GuiControl[] children;
 		lock (Controls)
-			children = Controls.OfType<GuiControl>().ToArray();
+			children = [.. Controls.OfType<GuiControl>()];
 		foreach (var child in children)
 			child.AdvanceAnimations(elapsedSeconds);
 	}
@@ -667,7 +667,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		GuiControl[] controls;
 		lock (Controls)
 		{
-			controls = Controls.OfType<GuiControl>().ToArray();
+			controls = [.. Controls.OfType<GuiControl>()];
 		}
 
 		foreach (var control in controls)
@@ -701,7 +701,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 
 		GuiControl[] children;
 		lock (Controls)
-			children = Controls.OfType<GuiControl>().ToArray();
+			children = [.. Controls.OfType<GuiControl>()];
 
 		foreach (var child in children)
 			child.ClearFirstResponders();
@@ -735,7 +735,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 			IGuiControl?[] controls;
 			lock (Controls)
 			{
-				controls = Controls.ToArray();
+				controls = [.. Controls];
 			}
 
 			foreach (var control in controls)
@@ -767,7 +767,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		GuiControl[] controls;
 		lock (Controls)
 		{
-			controls = Controls.OfType<GuiControl>().ToArray();
+			controls = [.. Controls.OfType<GuiControl>()];
 		}
 
 		foreach (var control in controls)
@@ -816,7 +816,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		GuiControl[] controls;
 		lock (Controls)
 		{
-			controls = Controls.OfType<GuiControl>().ToArray();
+			controls = [.. Controls.OfType<GuiControl>()];
 		}
 
 		foreach (var control in controls)
@@ -1019,9 +1019,9 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 		if (parts.Length > 3) Alpha = parts[3];
 	}
 
-	private static double[] ParseParts(string value, int maxParts) => value.TokenizeForScript(" ,").Take(maxParts).Select(part => TryParseDouble(part, out var parsed) ? parsed : 0).ToArray();
+	private static double[] ParseParts(string value, int maxParts) => [.. value.TokenizeForScript(" ,").Take(maxParts).Select(part => TryParseDouble(part, out var parsed) ? parsed : 0)];
 
-	private static string[] TokenizeParts(string value) => value.TokenizeForScript(" ,").ToArray();
+	private static string[] TokenizeParts(string value) => [.. value.TokenizeForScript(" ,")];
 
 	private static (double X, double Y) ParsePoint(string value)
 	{
@@ -1033,7 +1033,7 @@ public class GuiControl : ScriptVariable, IGuiControl, IDisposable
 	{
 		double              x       = X;
 		double              y       = Y;
-		HashSet<GuiControl> visited = new(ReferenceEqualityComparer.Instance) { this };
+		HashSet<GuiControl> visited = [with(ReferenceEqualityComparer.Instance), this];
 		var                 parent  = Parent as GuiControl;
 		while (parent != null && visited.Add(parent))
 		{

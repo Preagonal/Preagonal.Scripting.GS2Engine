@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
@@ -53,7 +54,7 @@ public class ScriptVariable(string name = "") : VariableCollection, IScriptVaria
 	protected override IEnumerable<KeyValuePair<string, object?>> GetVariableDictionary() =>
 	[
 		.. Properties
-		   .Where(p => !p.IsFunction)
+		   .Where(p => !p.IsFunction && !p.PropertyName.Equals("joinedclasses", StringComparison.InvariantCultureIgnoreCase))
 		   .Select(scriptProperty => new KeyValuePair<string, object?>(scriptProperty.PropertyName, scriptProperty.Read(this).GetValueForJson())),
 	];
 }
